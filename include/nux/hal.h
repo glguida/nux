@@ -271,9 +271,11 @@ void hal_umap_free (struct hal_umap *umap);
 #define HAL_PTE_X      (1 << 2)	/* The data page is executable. */
 #define HAL_PTE_U      (1 << 3)	/* The data page is a user mapping. */
 #define HAL_PTE_GLOBAL (1 << 4)	/* The data page is global (will persist across normal tlb flushes). */
-#define HAL_PTE_AVL0   (1 << 5)	/* Available bit */
-#define HAL_PTE_AVL1   (1 << 6)	/* Available bit */
-#define HAL_PTE_AVL2   (1 << 7)	/* Available bit */
+#define HAL_PTE_A      (1 << 5) /* Page has been accessed. */
+#define HAL_PTE_D      (1 << 6) /* Page has been written to. */
+#define HAL_PTE_AVL0   (1 << 7)	/* Available bit */
+#define HAL_PTE_AVL1   (1 << 8)	/* Available bit */
+#define HAL_PTE_AVL2   (1 << 9)	/* Available bit */
 
 /*
   Create a l1e value 

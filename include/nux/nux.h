@@ -135,6 +135,8 @@ void umap_init (struct umap *umap);
 void umap_free (struct umap *umap);
 bool umap_map (struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot,
 	       pfn_t * opfn);
+unsigned umap_chflags (struct umap *umap, vaddr_t va,
+		   unsigned prot_set, unsigned prot_clr);
 pfn_t umap_unmap (struct umap *umap, vaddr_t va);
 void umap_commit (struct umap *umap);
 
