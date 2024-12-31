@@ -44,6 +44,29 @@ _umap_setl1e (struct umap *umap, vaddr_t va, hal_l1e_t l1e, bool alloc,
   return true;
 }
 
+unsigned
+umap_chflags (struct umap *umap, vaddr_t va,
+	      unsigned prot_set, unsigned prot_clr)
+{
+  hal_l1p_t l1p;
+  hal_l1e_t oldl1e, l1e;
+  pfn_t pfn;
+  unsigned oldflags, flags;
+
+  if (!hal_umap_getl1p (&umap->hal, va, false, &l1p))
+    return 0;
+
+  l1e = hal_l1e_get (l1p);
+  hal_l1e_unbox (l1e, &pfn, &oldflags);
+  flags = oldflags | prot_set;
+  flags &= ~prot_clr;
+  l1e = hal_l1e_box (pfn, flags);
+  oldl1e = hal_l1e_set (l1p, l1e);
+  __atomic_or_fetch (&umap->tlbop, hal_l1e_tlbop (oldl1e, l1e),
+		     __ATOMIC_RELEASE);
+  return oldflags;
+}
+
 bool
 umap_map (struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot,
 	  pfn_t * opfn)
