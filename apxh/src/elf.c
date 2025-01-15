@@ -138,7 +138,7 @@ ph_uload (void *elfimg, uint32_t type, uint32_t flags,
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  va_copy (va, ELFOFF (off), fsize, 1,
+	  va_memcpy (va, ELFOFF (off), fsize, 1,
 		   !!(flags & PHF_W), !!(flags & PHF_X));
 	}
 
@@ -166,7 +166,7 @@ ph_uload (void *elfimg, uint32_t type, uint32_t flags,
 
 	  if (fsize != 0)
 	    {
-	      va_copy (va, ELFOFF (off), fsize, 0,
+	      va_memcpy (va, ELFOFF (off), fsize, 0,
 		       !!(flags & PHF_W), !!(flags & PHF_X));
 	    }
 	  va_utls (va, fsize, msize);
@@ -196,7 +196,7 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  va_copy (va, ELFOFF (off), fsize, 0,
+	  va_memcpy (va, ELFOFF (off), fsize, 0,
 		   !!(flags & PHF_W), !!(flags & PHF_X));
 	}
 
@@ -222,7 +222,7 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
 	    }
 	  if (fsize != 0)
 	    {
-	      va_copy (va, ELFOFF (off), fsize, 0,
+	      va_memcpy (va, ELFOFF (off), fsize, 0,
 		       !!(flags & PHF_W), !!(flags & PHF_X));
 	    }
 	  va_ktls (va, fsize, msize);

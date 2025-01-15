@@ -113,7 +113,7 @@ void va_init (void);
 uintptr_t va_getphys (vaddr_t va);
 void va_verify (vaddr_t va, size64_t size);
 void va_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x);
+void va_memcpy (vaddr_t va, void *addr, size64_t size, int u, int w, int x);
 void va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x);
 void va_physmap (vaddr_t va, size64_t size, enum memory_type);
 void va_linear (vaddr_t va, size64_t size);

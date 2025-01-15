@@ -130,7 +130,7 @@ va_populate (vaddr_t va, size64_t size, int u, int w, int x)
 }
 
 void
-va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x)
+va_memcpy (vaddr_t va, void *addr, size64_t size, int u, int w, int x)
 {
   ssize64_t len = size;
 
@@ -396,7 +396,7 @@ va_info_copy (uint64_t uentry, uint64_t num_regions)
   i.utls.initsize = utls_initsize;
   i.utls.size = utls_size;
 
-  va_copy (va, &i, MIN (size, sizeof (struct apxh_bootinfo)), 0, 0, 0);
+  va_memcpy (va, &i, MIN (size, sizeof (struct apxh_bootinfo)), 0, 0, 0);
 #undef MIN
 }
 
@@ -440,7 +440,7 @@ va_stree (vaddr_t va, size64_t size)
   hdr.order = order;
   hdr.offset = sizeof (hdr);
   hdr.size = 8 * STREE_SIZE (order);
-  va_copy (va, &hdr, sizeof (hdr), 0, 1, 0);
+  va_memcpy (va, &hdr, sizeof (hdr), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
   req_stree_va = va + sizeof (hdr);
@@ -582,7 +582,7 @@ va_regions_copy (void)
 #if 0
       printf ("Copying %d %d %d\n", apxhreg.type, apxhreg.pfn, apxhreg.len);
 #endif
-      va_copy (va + i * sizeof (struct apxh_region), &apxhreg,
+      va_memcpy (va + i * sizeof (struct apxh_region), &apxhreg,
 	       sizeof (struct apxh_region), 0, 0, 0);
     }
 }
