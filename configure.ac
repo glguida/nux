@@ -48,6 +48,10 @@ AC_CHECK_TOOL(TARGET_OBJCOPY, ${tool_prefix}-objcopy, :)
 if test x"${TARGET_OBJCOPY}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-objcopy not found])
 fi
+AC_CHECK_TOOL(TARGET_CXX, ${tool_prefix}-c++, :)
+if text x"${TARGET_CXX}" = 'x:'; then
+  AC_MSG_ERROR([${tool_prefix}-c++ not found])
+fi
 
 machine=${ARCH}
 

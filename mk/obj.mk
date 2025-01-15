@@ -10,6 +10,7 @@ OBJDIRSTAMP=$(OBJDIR)/.stamp
 
 vpath %.S $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR)
 vpath %.c $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR)
+vpath %.cc $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR)
 
 CFLAGS+=-MMD
 
@@ -32,6 +33,12 @@ $(OBJDIR)/%.c.o: %.c $(OBJDIRSTAMP)
 
 $(OBJDIR)/%.o: %.c $(OBJDIRSTAMP)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+$(OBJDIR)/%.cc.o: %.cc $(OBJDIRSTAMP)
+	$(CXX) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+$(OBJDIR)/%.o: %.cc $(OBJDIRSTAMP)
+	$(CXX) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
 $(OBJDIRSTAMP):
 	-mkdir -p $(OBJDIR)

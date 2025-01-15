@@ -6,6 +6,7 @@
 
 .PHONY: all install clean
 CC=@TARGET_CC@
+CXX=@TARGET_CXX@
 CCLD=@TARGET_CC@
 LD=@TARGET_LD@
 AR=@TARGET_AR@
