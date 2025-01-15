@@ -16,8 +16,8 @@
 #define assert(_e)							\
   do {									\
     if (!(_e)) {							\
-      printf("Assertion '"# _e "' failed at "				\
-	     __FILE__ ":%d\n", __LINE__);				\
+      printf("Assertion '%s' failed at "				\
+	     __FILE__ ":%d\n", #_e, __LINE__);				\
       exit(-1);								\
     }									\
   } while(0)
