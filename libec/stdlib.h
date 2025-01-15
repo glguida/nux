@@ -9,9 +9,17 @@
 
 #include <cdefs.h>
 
-unsigned long strtoul (const char *str, char **endptr, int base);
-int atexit (void (*func) (void));
-void __dead exit (int status);	/* EXTERNAL */
-void __dead abort (void);	/* EXTERNAL */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  unsigned long strtoul (const char *str, char **endptr, int base);
+  int atexit (void (*func) (void));
+  void __dead exit (int status);	/* EXTERNAL */
+  void __dead abort (void);	/* EXTERNAL */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
