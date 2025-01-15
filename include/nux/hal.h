@@ -130,13 +130,13 @@ void *hal_physmem_stree (unsigned *order);
   User Area description. 
  */
 vaddr_t hal_virtmem_userbase (void);
-const size_t hal_virtmem_usersize (void);
+size_t hal_virtmem_usersize (void);
 
 /*
   Direct Memory Map description. 
  */
 vaddr_t hal_virtmem_dmapbase (void);
-const size_t hal_virtmem_dmapsize (void);
+size_t hal_virtmem_dmapsize (void);
 
 /*
   PFN Cache Area.
@@ -144,26 +144,26 @@ const size_t hal_virtmem_dmapsize (void);
   NB: no, this is not VMS.
 */
 vaddr_t hal_virtmem_pfn$base (void);
-const size_t hal_virtmem_pfn$size (void);
+size_t hal_virtmem_pfn$size (void);
 
 /*
   Kernel Virtual Area Map Description. 
  */
 vaddr_t hal_virtmem_kvabase (void);
-const size_t hal_virtmem_kvasize (void);
+size_t hal_virtmem_kvasize (void);
 
 /*
   Kernel Memory Area Description.
 */
 vaddr_t hal_virtmem_kmembase (void);
-const size_t hal_virtmem_kmemsize (void);
+size_t hal_virtmem_kmemsize (void);
 
 /*
   Boot-time user entry point.
 
   If zero there's no boot-time user process.
 */
-const vaddr_t hal_virtmem_userentry (void);
+vaddr_t hal_virtmem_userentry (void);
 
 
 /*

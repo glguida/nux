@@ -321,7 +321,7 @@ hal_virtmem_dmapbase (void)
   return (uint64_t) (uintptr_t) & _physmap_start;
 }
 
-const size_t
+size_t
 hal_virtmem_dmapsize (void)
 {
   return (size_t) ((void *) &_physmap_end - (void *) &_physmap_start);
@@ -333,28 +333,28 @@ hal_virtmem_pfn$base (void)
   return (uint64_t) (uintptr_t) & _pfncache_start;
 }
 
-const size_t
+size_t
 hal_virtmem_pfn$size (void)
 {
   return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
 }
 
-const vaddr_t
+vaddr_t
 hal_virtmem_userbase (void)
 {
   return pt_umap_minaddr ();
 }
 
-const size_t
+size_t
 hal_virtmem_usersize (void)
 {
   return pt_umap_maxaddr ();
 }
 
-const vaddr_t
+vaddr_t
 hal_virtmem_userentry (void)
 {
-  return (const vaddr_t) bootinfo->uentry;
+  return (vaddr_t) bootinfo->uentry;
 }
 
 unsigned long
@@ -411,7 +411,7 @@ hal_virtmem_kvabase (void)
   return (vaddr_t) & _kva_start;
 }
 
-const size_t
+size_t
 hal_virtmem_kvasize (void)
 {
   return (size_t) ((void *) &_kva_end - (void *) &_kva_start);
@@ -423,7 +423,7 @@ hal_virtmem_kmembase (void)
   return (vaddr_t) & _kmem_start;
 }
 
-const size_t
+size_t
 hal_virtmem_kmemsize (void)
 {
   return (size_t) ((void *) &_kmem_end - (void *) &_kmem_start);
