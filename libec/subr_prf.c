@@ -85,12 +85,12 @@ typedef unsigned long long u_longlong_t;
 #endif
 
 #ifdef LIBSA_PRINTF_WIDTH_SUPPORT
-static void kprintn(void (*)(int), UINTMAX_T, int, int, int);
+static void kprintn(int (*)(int), UINTMAX_T, int, int, int);
 #else
-static void kprintn(void (*)(int), UINTMAX_T, int);
+static void kprintn(int (*)(int), UINTMAX_T, int);
 #endif
-static void sputchar(int);
-static void kdoprnt(void (*)(int), const char *, va_list);
+static int sputchar(int);
+static void kdoprnt(int (*)(int), const char *, va_list);
 
 static char *sbuf, *ebuf;
 
@@ -155,12 +155,13 @@ do {								\
 } while (/*CONSTCOND*/0)
 #endif	/* LIBSA_PRINTF_LONGLONG_SUPPORT */
 
-static void
+static int
 sputchar(int c)
 {
 
 	if (sbuf < ebuf)
 		*sbuf++ = c;
+	return c;
 }
 
 int
@@ -183,7 +184,7 @@ vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 }
 
 static void
-kdoprnt(void (*put)(int), const char *fmt, va_list ap)
+kdoprnt(int (*put)(int), const char *fmt, va_list ap)
 {
 	char *p;
 	int ch;
@@ -367,9 +368,9 @@ reswitch:
 
 static void
 #ifdef LIBSA_PRINTF_WIDTH_SUPPORT
-kprintn(void (*put)(int), UINTMAX_T ul, int base, int lflag, int width)
+kprintn(int (*put)(int), UINTMAX_T ul, int base, int lflag, int width)
 #else
-kprintn(void (*put)(int), UINTMAX_T ul, int base)
+kprintn(int (*put)(int), UINTMAX_T ul, int base)
 #endif
 {
 					/* hold a INTMAX_T in base 8 */

@@ -1,10 +1,11 @@
 #include <nux/syscalls.h>
 #include <stdio.h>
 
-void
+int
 putchar (int c)
 {
   (void) syscall1 (4096, c);
+  return c;
 }
 
 void

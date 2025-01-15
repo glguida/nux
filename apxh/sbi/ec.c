@@ -1,9 +1,10 @@
 #include <stdio.h>
 
-void
+int
 putchar (int ch)
 {
   asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (ch):"a0", "a7");
+  return ch;
 }
 
 void

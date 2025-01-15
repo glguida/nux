@@ -12,10 +12,11 @@
 
 #include "internal.h"
 
-void
+int
 putchar (int c)
 {
   hal_putchar (c);
+  return c;
 }
 
 void __dead

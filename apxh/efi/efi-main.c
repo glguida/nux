@@ -37,6 +37,7 @@ int
 putchar (int c)
 {
   Print (L"%c", c);
+  return c;
 }
 
 static void *payload_start;
