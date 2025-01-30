@@ -226,6 +226,38 @@ hal_pcpu_enter (unsigned pcpuid)
 }
 
 void
+enable_sse (void)
+{
+  /*
+    Start AVX and SSE. (INTEL SPECIFIC)
+  */
+
+  printf("Enabling SSE/AVX...");
+  asm volatile (
+		"mov %%cr0, %%rax\n"
+		"and $~0x8, %%rax\n" /* Clear TS in case. */
+		"and $~0x4, %%rax\n" /* Clear EM in case. */
+		"mov %%rax, %%cr0\n"
+
+		"mov %%cr0, %%rax\n"
+		"or $0x2, %%rax\n"  /* Set MP */
+		"mov %%rax, %%cr0\n"
+
+		"mov %%cr4, %%rax\n"
+		"or $0x200, %%rax\n"   /* Set OSFXSR */
+		"or $0x400, %%rax\n"   /* Set OSXMMEXCPT */
+		"or $0x40000, %%rax\n" /* Set OSXSAVE */
+		"mov %%rax, %%cr4\n"
+
+		"xor %%ecx, %%ecx\n" /* XCR0 */
+		"mov $0x7, %%eax\n"  /* Enable x87, SSE, AVX */
+		"xor %%edx, %%edx\n" /* Upper bits empty. */
+		"xsetbv\n"
+		::: "rax", "rcx", "rdx");
+  printf("done\n");
+}
+
+void
 amd64_init (void)
 {
   extern char _syscall_frame_entry;
@@ -233,6 +265,7 @@ amd64_init (void)
   wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
   wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
+  enable_sse ();
 }
 
 void
@@ -246,6 +279,8 @@ amd64_init_ap (uintptr_t esp)
   wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
   wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
+
+  enable_sse ();
 
   haldata->kstack = esp;
   haldata->tss.ist[0] = alloc_stackpage ();
