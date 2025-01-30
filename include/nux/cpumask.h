@@ -38,6 +38,26 @@ atomic_cpumask (cpumask_t * cpumask)
   return __sync_add_and_fetch (cpumask, 0);
 }
 
+static inline bool
+atomic_cpumask_get (cpumask_t * cpumask, unsigned cpu)
+{
+  cpumask_t mask = ((cpumask_t) 1 << cpu);
+
+  return !!(atomic_cpumask (cpumask) & mask);
+}
+
+static inline bool
+atomic_cpumask_empty (cpumask_t * cpumask)
+{
+  return atomic_cpumask (cpumask) == 0;
+}
+
+static inline bool
+cpumask_get (cpumask_t * cpumask, unsigned cpu)
+{
+  return !!(*cpumask & (1 << cpu));
+}
+
 static inline void
 cpumask_set (cpumask_t * cpumask, unsigned cpu)
 {
