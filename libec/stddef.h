@@ -7,7 +7,7 @@
 #ifndef EC_STDDEF_H
 #define EC_STDDEF_H
 
-#define NULL ((void *)0)
+#include <cdefs.h>
 
 #include <machine/ansi.h>
 
