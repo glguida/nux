@@ -217,9 +217,9 @@ ___mkptr (zaddr_t zaddr, size_t size, uintptr_t opq)
   ptr->size = size;
 
   tail =
-    (struct kmem_tail *) ((void *) ptr + size - sizeof (struct kmem_tail));
+    (struct kmem_tail *) ((void *) ptr + z_to_v(size) - sizeof (struct kmem_tail));
   tail->magic = ZONE_TAIL_MAGIC;
-  tail->offset = size - sizeof (struct kmem_tail);
+  tail->offset = z_to_v(size) - sizeof (struct kmem_tail);
 
   /* XXX: UNPAGE FREE PAGES IN THE MIDDLE. */
 
