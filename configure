@@ -593,6 +593,7 @@ HALDIR
 MACHINE
 PLT_VERBOSE
 DEBUG
+TARGET_CXX
 TARGET_OBJCOPY
 TARGET_AR
 TARGET_LD
@@ -3058,6 +3059,101 @@ fi
 
 if test x"${TARGET_OBJCOPY}" = 'x:' ; then
   as_fn_error $? "${tool_prefix}-objcopy not found" "$LINENO" 5
+fi
+if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}${tool_prefix}-c++", so it can be a program name with args.
+set dummy ${ac_tool_prefix}${tool_prefix}-c++; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_TARGET_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$TARGET_CXX"; then
+  ac_cv_prog_TARGET_CXX="$TARGET_CXX" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_TARGET_CXX="${ac_tool_prefix}${tool_prefix}-c++"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+TARGET_CXX=$ac_cv_prog_TARGET_CXX
+if test -n "$TARGET_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TARGET_CXX" >&5
+$as_echo "$TARGET_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_prog_TARGET_CXX"; then
+  ac_ct_TARGET_CXX=$TARGET_CXX
+  # Extract the first word of "${tool_prefix}-c++", so it can be a program name with args.
+set dummy ${tool_prefix}-c++; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_ac_ct_TARGET_CXX+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$ac_ct_TARGET_CXX"; then
+  ac_cv_prog_ac_ct_TARGET_CXX="$ac_ct_TARGET_CXX" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_ac_ct_TARGET_CXX="${tool_prefix}-c++"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+ac_ct_TARGET_CXX=$ac_cv_prog_ac_ct_TARGET_CXX
+if test -n "$ac_ct_TARGET_CXX"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_ct_TARGET_CXX" >&5
+$as_echo "$ac_ct_TARGET_CXX" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_ct_TARGET_CXX" = x; then
+    TARGET_CXX=":"
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    TARGET_CXX=$ac_ct_TARGET_CXX
+  fi
+else
+  TARGET_CXX="$ac_cv_prog_TARGET_CXX"
+fi
+
+if text x"${TARGET_CXX}" = 'x:'; then
+  as_fn_error $? "${tool_prefix}-c++ not found" "$LINENO" 5
 fi
 
 machine=${ARCH}
