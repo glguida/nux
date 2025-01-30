@@ -94,7 +94,7 @@ hal_vect_max (void)
 }
 
 #define CANARY_SIZE PAGE_SIZE
-#define STACK_SIZE (64 * 1024) /* 64kb Stack. */
+#define STACK_SIZE (2 * 1024 * 1024) /* 64kb Stack. */
 
 static uint64_t
 alloc_stackpage (void)

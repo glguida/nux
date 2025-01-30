@@ -258,7 +258,7 @@ apsetup:
 	.section .kstack_bsp, "aw"
 	.align 4096
 _stackbtm:
-	.zero 64*1024
+	.zero 2*1024*1024
 	.globl _bsp_stacktop
 _bsp_stacktop:
 
