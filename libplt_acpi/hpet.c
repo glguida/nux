@@ -5,7 +5,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#include <string.h>
+#include <sys/bitops.h>
 
 #include "internal.h"
 #include <nux/nux.h>
@@ -132,7 +132,7 @@ hpet_init (paddr_t hpetpa)
 	  error ("No IRQ available, can't use counter %d", TMR);
 	  return false;
 	}
-      irqno = ffs (irqcap) - 1;
+      irqno = ffs32 (irqcap) - 1;
       tmrcfg |= (irqno << 9);
       debug ("Using Interrupt Routing (%d - %x).\n", irqno, irqcap);
     }
