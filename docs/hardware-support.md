@@ -59,4 +59,4 @@ The example makefile defines QEMU smoke targets for all configured architectures
 - amd64: `qemu-system-x86_64`
 - riscv64: `qemu-system-riscv64 -M virt`
 
-These targets were source-inspected but not run in this container because configure failed before build due to missing host compiler.
+These targets were source-inspected during the initial docs pass. The old missing-host-compiler blocker has since been resolved in this container. The reviewed i386 target-toolchain slice now passes configure/build with `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin` prepended to `PATH`; without that prefix, the target tools are still absent. The current runtime smoke blocker is QEMU: `qemu-system-i386` and `qemu-system-x86_64` are not installed.

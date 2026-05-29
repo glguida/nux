@@ -29,6 +29,12 @@ APXH loads ELF program headers and handles APXH-specific segment types (`apxh/sr
 
 The HAL linker scripts request these areas in `libhal_x86/i386/exe.ld`, `libhal_x86/amd64/exe.ld`, and `libhal_riscv/exe.ld`. HAL startup code validates and exposes them through `hal_virtmem_*` and `hal_physmem_*` functions (`libhal_x86/x86.c`, `libhal_riscv/riscv.c`).
 
+## x86 pinned MMIO regions
+
+The tracked x86 HAL adds two pinned non-RAM memory regions on top of the APXH-provided boot regions (`libhal_x86/x86.c`): PFN 0 length 1 and PFN `0xa0` length 96, both typed `APXH_REGION_MMIO` from `include/nux/apxh.h`. `hal_physmem_numregions()` includes those pinned entries, `hal_physmem_region()` returns them after the bootloader-provided region list, and `x86_init()` clears pinned non-RAM PFNs from the S-tree allocator.
+
+This is confirmed x86 HAL behavior that Murgia's ACPI/MMIO discovery handoff depends on. Treat it as an x86 NUX/HAL contract to preserve or deliberately change with a tracked fix; it is not evidence of a generic RISC-V memory-region contract.
+
 ## PFN allocator
 
 The default physical-page allocator is an S-tree bitmap initialized from APXH (`libnux/pfnalloc.c`).

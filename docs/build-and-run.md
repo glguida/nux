@@ -107,9 +107,9 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 - `libhal_riscv/exe.ld` uses the same high-half base, 512 GiB physmap/KVA/KMEM, 256 MiB PFN cache, and 32 MiB framebuffer mapping.
 - Treat RISC-V EFI as unverified: APXH EFI records `PLT_ACPI`, while `libplt_sbi` requires `PLT_DTB` (`apxh/efi/apxhefi/efi_md.c`, `libplt_sbi/sbi.c`).
 
-## Verification from this documentation pass
+## Verification history and current container status
 
-Commands run in the task worktree:
+Commands from the initial documentation pass in the task worktree:
 
 ```sh
 ./configure --help >/tmp/the-nux-configure-help.txt
@@ -118,7 +118,7 @@ cd build-docs-check
 ../configure ARCH=i386 > /tmp/the-nux-build-configure-i386.txt 2>&1
 ```
 
-Results:
+Initial results:
 
 - `./configure --help` succeeded and produced 78 lines of help in `/tmp/the-nux-configure-help.txt`.
 - `../configure ARCH=i386` failed before target-tool checks because the container PATH did not contain a host C compiler:
@@ -130,4 +130,26 @@ checking for cl.exe... no
 configure: error: no acceptable C compiler found in $PATH
 ```
 
-Because configure failed, `make -j"$(nproc)"` was not actionable in this environment. The first actionable blocker is to install or provide a host compiler, then provide the target cross toolchains and initialized submodules.
+That host-compiler result is history, not the current first blocker in this container.
+
+A later reviewed host-tools readiness slice on task `the-nux-docs-capabilities` installed the normal host baseline with apt: `build-essential`, `autoconf`, `automake`, and `file`, plus dependencies including GCC/G++, Make, and binutils. The reviewer independently verified the tools and versions, and `./configure --help` still passed with 78 lines.
+
+After those host tools were present, fresh out-of-tree `ARCH=i386` configure probes from `/tmp` passed the host C compiler checks and failed at the target toolchain check:
+
+```text
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking whether we are using the GNU C compiler... yes
+checking for i686-unknown-elf-gcc... no
+configure: error: i686-unknown-elf-gcc not found
+```
+
+A subsequent reviewed target-toolchain slice built the README-recommended `gcc_toolchain_build` i386 tools under `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin`. Without that directory on `PATH`, `i686-unknown-elf-gcc`, `ld`, `ar`, and `objcopy` are still absent. With it prepended, reviewer-verified fresh `ARCH=i386` configure and `make -j"$(nproc)"` passed and produced `example/example_qemu`:
+
+```sh
+TOOLBIN=/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin
+PATH="$TOOLBIN:$PATH" /home/glguida/the_nux/configure ARCH=i386
+PATH="$TOOLBIN:$PATH" make -j"$(nproc)"
+```
+
+The current reviewed runtime blocker is QEMU, not the host compiler or i386 configure/build: `qemu-system-i386` and `qemu-system-x86_64` are not installed in this container. The toolchain also still needs a stable-location policy if `/tmp` is not durable enough for ongoing work.

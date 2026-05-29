@@ -28,7 +28,7 @@ The HAL supplies the actual frame layout and register setters/getters (`include/
 
 A NUX kernel implements the hooks declared in `include/nux/nux.h`:
 
-- `entry_sysc(uctxt_t *, a1..a7)` for syscalls.
+- `entry_sysc(uctxt_t *, unsigned long a1, ..., unsigned long a7)` for syscalls. The tracked `include/nux/nux.h` contract has seven syscall words after the `uctxt_t *`; `libnux/entry.c` passes all seven to the kernel hook.
 - `entry_pf(uctxt_t *, va, hal_pfinfo_t)` for page faults.
 - `entry_ex(uctxt_t *, ex)` for generic exceptions.
 - `entry_alarm(uctxt_t *)` for platform timer alarms.
@@ -49,7 +49,7 @@ This is the current return-based contract: `include/nux/nux.h` declares every `e
 
 The HAL entry side maps those registers back into `hal_entry_syscall()` (`libhal_x86/i386/sys_entry.c`, `libhal_x86/amd64/frame.c`, `libhal_riscv/riscv.c`). `libnux/entry.c` then calls the kernel's `entry_sysc()`.
 
-The example user program defines `putchar` as syscall `4096` and `exit` as syscall `4097`, then tests syscall arities 0 through 6 (`example/user/main.c`). These numbers are example policy, not a documented stable global ABI.
+The example user program defines `putchar` as syscall `4096` and `exit` as syscall `4097`, then tests syscall arities 0 through 6 (`example/user/main.c`). In the example kernel, `a1` is the syscall number and `a2` through `a7` are the six possible user arguments. These numbers are example policy, not a documented stable global ABI.
 
 ## User entry and linking
 
@@ -69,7 +69,7 @@ The example user program defines `putchar` as syscall `4096` and `exit` as sysca
 
 ## Current userspace gaps
 
-- There is no central syscall-number registry beyond the example kernel/user pair.
+- There is no central syscall-number registry beyond the example kernel/user pair; Murgia currently depends on the NUX `entry_sysc` handler arity remaining explicit.
 - There is no scheduler/process abstraction in the current public API; event hooks return the next user context or `UCTXT_IDLE`.
 - The entry-hook contract is return-based today; the task-log Murgia/MH roadmap proposes input-frame mutation instead, but no tracked implementation exists yet.
 - i386 TLS is explicitly ignored in `hal_frame_settls()` (`libhal_x86/i386/sys_entry.c`).

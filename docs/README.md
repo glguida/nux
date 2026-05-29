@@ -11,7 +11,7 @@ This `docs/` tree is the first source-backed documentation baseline for the curr
 - [Debugging](debugging.md): QEMU debug entry points, logging, panic/crash output, symbol generation, and performance counters.
 - [Memory model](memory.md): PFN, PFN cache, KVA, KMAP, KMEM, UMAP, and user address handling.
 - [Userspace](userspace.md): boot-time user payloads, syscall wrappers, user contexts, page-fault hooks, and example code.
-- [Murgia integration](murgia-integration.md): traceable cross-project requirements and the current task-log-backed Murgia/MH roadmap dependency.
+- [Murgia integration](murgia-integration.md): traceable cross-project requirements, including the current task-log-backed Murgia/MH roadmap and follow-up handoff items.
 - [Backlog](backlog.md): prioritized bugs, TODOs, documentation gaps, hardware gaps, and candidate small implementation slices.
 
 ## Evidence policy

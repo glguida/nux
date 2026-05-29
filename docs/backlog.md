@@ -4,19 +4,27 @@ This backlog is source-inspected only unless a verification result, task-log ite
 
 ## P0: build and documentation blockers
 
-1. **Provide baseline build tools in the development container.**
-   - Evidence: `../configure ARCH=i386` failed in `build-docs-check` with `no acceptable C compiler found in $PATH`.
-   - Next slice: install/provide a host C compiler, then rerun configure and capture the next target-tool or submodule error.
-2. **Initialize and verify required submodules.**
+1. **Host build-tool baseline for this container is resolved.**
+   - Historical evidence: the initial documentation pass failed `../configure ARCH=i386` in `build-docs-check` with `no acceptable C compiler found in $PATH`.
+   - Current reviewed status: task-log comments `2026-05-29T19:56:57Z` and `2026-05-29T19:58:36Z` record apt installation and review of the normal host baseline (`build-essential`, `autoconf`, `automake`, `file`, plus GCC/G++, Make, and binutils dependencies). `./configure --help` passes.
+   - Follow-up trigger: if this container is rebuilt or the host baseline disappears, reinstall/reverify those packages. Do not treat the old missing-host-compiler result as the current first blocker.
+2. **Stabilize the reviewed `i686-unknown-elf` target toolchain path.**
+   - Historical blocker: after host tools were installed, fresh `/tmp` `ARCH=i386` configure probes passed host compiler checks and failed at `i686-unknown-elf-gcc not found`.
+   - Current reviewed status: task-log comments `2026-05-29T20:15:25Z`, `2026-05-29T20:18:36Z`, and `2026-05-29T20:20:57Z` record that the README-recommended `gcc_toolchain_build` path produced `i686-unknown-elf-{gcc,ld,ar,objcopy}` under `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin`. With that directory prepended to `PATH`, fresh i386 configure and `make -j"$(nproc)"` pass and produce `example/example_qemu`; without the prefix, the target tools are still absent.
+   - Next slice: decide whether `/tmp` is acceptable for ongoing work or promote the built toolchain to a stable container/project path, then document the final `PATH` policy.
+3. **Provide QEMU for the current i386 runtime smoke blocker.**
+   - Evidence: the reviewed target-toolchain slice says `make qemu` failed at `qemu-system-i386: No such file or directory`; `qemu-system-x86_64` is also absent.
+   - Next slice: install/provide the minimal QEMU x86 package, then run the example `make qemu` or a timeout-based smoke wrapper from a fresh `/tmp` build using the reviewed target-toolchain `PATH`.
+4. **Initialize and verify required submodules.**
    - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; worktree `git submodule status` showed them uninitialized with leading `-`.
    - Next slice: initialize submodules in a clean worktree and rerun configure/build.
-3. **Fix APXH configure architecture selection.**
+5. **Fix APXH configure architecture selection.**
    - Evidence: `apxh/configure.ac` is missing a separator between the `amd64` and `riscv64` `AS_CASE` branches; generated `apxh/configure` shows an obviously malformed amd64 branch and has an error message that omits `riscv64`.
    - Next slice: fix `apxh/configure.ac`, run `./bootstrap.sh`, and verify `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64` APXH subdir selection.
-4. **Fix `--disable-werror` handling in configure inputs.**
+6. **Fix `--disable-werror` handling in configure inputs.**
    - Evidence: top-level, APXH, and example `configure.ac` define `AC_ARG_ENABLE([werror])` but test `enable_relax` rather than `enable_werror`.
    - Next slice: correct the variable, regenerate configure scripts, and test `--disable-werror`.
-5. **Reconcile README boot-support claims with configure behavior.**
+7. **Reconcile README boot-support claims with configure behavior.**
    - Evidence: README says APXH supports EFI on i386, amd64, and riscv64. `apxh/configure.ac` currently selects only `multiboot` for i386, intended `multiboot efi` for amd64, and `sbi efi` for riscv64.
    - Next slice: decide whether the README, configure logic, or both should change.
 
@@ -77,9 +85,9 @@ This backlog is source-inspected only unless a verification result, task-log ite
 4. **Document syscall ABI stability.**
    - Evidence: `libnux_user` wraps syscalls, but syscall numbers are example-local (`4096` putchar, `4097` exit in `example/kern/main.c`/`example/user/main.c`).
    - Next slice: either publish a minimal NUX syscall convention or explicitly state that kernels own their syscall ABI.
-5. **Keep Murgia requirements traceable as they arrive.**
-   - Evidence: `docs/murgia-integration.md` now records the task-log-backed `MURGIA-MH-001` roadmap dependency; no broader Murgia handoff requirements are present yet.
-   - Next slice: add trace rows to `docs/murgia-integration.md` when Murgia sends additional durable requirements.
+5. **Keep Murgia requirements traceable and triaged.**
+   - Evidence: `docs/murgia-integration.md` records task-log-backed `MURGIA-MH-001` plus the `2026-05-29T19:53:34Z` Murgia handoff rows for the `entry_sysc` arity contract, x86 PFN-0/MMIO-region behavior, and `UIOMAP`/`IOUNMAP` errno semantics.
+   - Next slice: for confirmed NUX contracts, add compile/build checks or source comments when useful; for Murgia-side dependency candidates, wait for concrete NUX acceptance criteria before changing APIs.
 6. **Clean README and install docs.**
    - Evidence: README has minor typos and a malformed closing fence in the build snippet; `install.sh` contains only a TODO comment.
    - Next slice: fix README after build commands are verified and either implement or remove/document `install.sh`.
