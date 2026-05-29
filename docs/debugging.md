@@ -34,7 +34,7 @@ cd example
 PATH="$TOOLBIN:$PATH" timeout --foreground 20s make qemu
 ```
 
-A timeout rc 124 is expected for this smoke because the guest idles after userspace exits. Count it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, and `User exited with error code: 42`.
+A timeout rc 124 is expected for this smoke because the guest idles after userspace exits. Count it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_VALIDRANGE test passed.`, and `User exited with error code: 42`.
 
 ## Logging paths
 

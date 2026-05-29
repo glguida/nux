@@ -20,10 +20,40 @@ struct hal_umap umap;
 DEFINE_MEASURE (syscalls_cycles);
 DEFINE_MEASURE (syscalls_nsecs);
 
+static void
+uaddr_validrange_test (void)
+{
+  uaddr_t base = (uaddr_t) hal_virtmem_userbase ();
+  size_t usersize = hal_virtmem_usersize ();
+  uaddr_t end;
+
+  assert (usersize > 2);
+  assert (usersize <= UADDR_INVALID - base);
+
+  end = base + usersize;
+
+  assert (uaddr_valid (base));
+  assert (uaddr_validrange (base, 1));
+  assert (uaddr_validrange (base, usersize));
+  assert (!uaddr_validrange (end, 1));
+  if (usersize < UADDR_INVALID - base)
+    {
+      assert (!uaddr_validrange (base, usersize + 1));
+      assert (!uaddr_validrange (end + 1, 0));
+    }
+  assert (!uaddr_validrange (base + 2, (size_t) UADDR_INVALID));
+  assert (uaddr_validrange (base, 0));
+  assert (uaddr_validrange (base + usersize / 2, 0));
+  assert (uaddr_validrange (end, 0));
+
+  info ("UADDR_VALIDRANGE test passed.");
+}
+
 int
 main (int argc, char *argv[])
 {
   printf ("Hello, %s (%" PRIx64 ")!", argv[1], timer_gettime ());
+  uaddr_validrange_test ();
 
   timer_alarm (1 * 1000 * 1000 * 1000);
 

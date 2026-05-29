@@ -64,8 +64,8 @@ The example user program defines `putchar` as syscall `4096` and `exit` as sysca
 ## User memory and page faults
 
 - `umap_bootstrap()` captures APXH-created user mappings, and `cpu_umap_enter()` loads a UMAP into the CPU (`libnux/umap.c`, `libnux/cpu.c`).
-- `uaddr_valid()` and `uaddr_validrange()` check whether an address is inside the HAL user range (`libnux/uaddr.c`).
-- `uaddr_copyfrom`, `uaddr_copyto`, and `uaddr_memset` call CPU user-access helpers that can recover from page faults via `setjmp`/`longjmp` and an optional callback (`include/nux/nux.h`, `libnux/cpu.c`).
+- `uaddr_valid()` checks one address inside the HAL user range; `uaddr_validrange()` checks half-open user-copy byte ranges, accepts non-empty ranges through a last byte inside the user interval, rejects overflow/oversized ranges, and treats zero-length no-ops as valid from userbase through one-past-user-end (`libnux/uaddr.c`).
+- `uaddr_copyfrom`, `uaddr_copyto`, and `uaddr_memset` call CPU user-access helpers that validate those ranges before recovering from page faults via `setjmp`/`longjmp` and an optional callback (`include/nux/nux.h`, `libnux/cpu.c`).
 
 ## Current userspace gaps
 

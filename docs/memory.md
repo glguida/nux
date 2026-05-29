@@ -98,7 +98,7 @@ UMAP represents a user page-table set (`include/nux/types.h`, `libnux/umap.c`).
 
 Callers are responsible for synchronizing concurrent access to the same UMAP; `libnux/umap.c` explicitly says it does not lock UMAP access.
 
-`uaddr_valid()` and `uaddr_validrange()` validate user addresses using `hal_virtmem_userbase()` and `hal_virtmem_usersize()` (`libnux/uaddr.c`). User-copy helpers in `libnux/cpu.c` enable HAL user access, use `setjmp`/`longjmp` to recover from page faults, and call an optional page-fault handler.
+`uaddr_valid()` validates one address against the HAL user interval `[hal_virtmem_userbase(), hal_virtmem_userbase() + hal_virtmem_usersize())` (`libnux/uaddr.c`). `uaddr_validrange()` validates the half-open byte range `[a, a + size)`: non-empty ranges must have their last accessed byte inside the user interval without unsigned overflow, and zero-length user-copy no-ops are accepted at addresses from the user base through one-past-user-end inclusive. User-copy helpers in `libnux/cpu.c` enable HAL user access, use `setjmp`/`longjmp` to recover from page faults, and call an optional page-fault handler.
 
 ## Current virtual layout highlights
 
@@ -111,6 +111,6 @@ Callers are responsible for synchronizing concurrent access to the same UMAP; `l
 ## Memory-related backlog flags
 
 - The historical `uctxt_seta2()` setter bug was fixed in `libnux/uctxt.c`; the helper now calls `hal_frame_seta2()` and is covered by the example kernel/user `UCTXT_SETA2` smoke check.
-- `libnux/uaddr.c` has unused macros with an obviously malformed comparison and should get boundary/overflow tests.
+- The historical `libnux/uaddr.c` range-check bug is fixed: stale malformed macros were removed, `uaddr_validrange()` now checks half-open ranges without overflowing, and the example i386 smoke prints `UADDR_VALIDRANGE test passed.` after covering boundary/zero-length/overflow cases.
 - `libnux/kva.c` appears to call `kmem_alloc()` in `vmap_remove()` where freeing would be expected; verify and fix if confirmed.
 - `libnux/framebuffer.c` marks RGB masks and bounds handling as incomplete.

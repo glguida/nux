@@ -10,9 +10,6 @@
 
 #include "internal.h"
 
-#define __isuaddr(_a) (((_a) >= hal_virtmem_userbase ()) && ((_a) < hal_virtmem_userbase ()))
-#define __chkuaddr(_a, _sz) (__isuaddr(_a) && ((_a) + (_sz) <= USEREND) && ((_a) < (_a) + (_sz)))
-
 bool
 uaddr_valid (uaddr_t a)
 {
@@ -25,5 +22,27 @@ uaddr_valid (uaddr_t a)
 bool
 uaddr_validrange (uaddr_t a, size_t size)
 {
-  return uaddr_valid (a) && uaddr_valid (a + size) && (a < (a + size));
+  uaddr_t min = (uaddr_t) hal_virtmem_userbase ();
+  size_t usersize = hal_virtmem_usersize ();
+  uaddr_t max;
+  size_t last_offset;
+  uaddr_t last;
+
+  if (usersize > UADDR_INVALID - min)
+    return false;
+
+  max = min + usersize;
+
+  if (size == 0)
+    return ((a >= min) && (a <= max));
+
+  if (a < min)
+    return false;
+
+  last_offset = size - 1;
+  if (last_offset > UADDR_INVALID - a)
+    return false;
+
+  last = a + last_offset;
+  return (last < max);
 }
