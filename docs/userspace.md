@@ -37,6 +37,8 @@ A NUX kernel implements the hooks declared in `include/nux/nux.h`:
 
 `libnux/entry.c` validates whether the interrupted frame is user, idle, or invalid, panics on unexpected kernel faults, calls the kernel hook, and converts the returned `uctxt_t` back to a HAL frame or idle state.
 
+This is the current return-based contract: `include/nux/nux.h` declares every `entry_*` hook as returning `uctxt_t *`, `libnux/entry.c` stores that return value, and `libnux/uctxt.c` converts it with `uctxt_frame()`. A task-log/base-checkout roadmap note for the basic Murgia/MH port proposes changing entry functions so they mutate the input frame/return data instead of returning a replacement frame/context. That proposal is not implemented; kernels and examples must treat the tracked headers as authoritative until the API is changed.
+
 ## Syscall ABI wrappers
 
 `libnux_user` exposes `syscall0` through `syscall6` (`libnux_user/nux/syscalls.h`, `libnux_user/syscalls.c`). Architecture-specific assembly is in:
@@ -69,6 +71,7 @@ The example user program defines `putchar` as syscall `4096` and `exit` as sysca
 
 - There is no central syscall-number registry beyond the example kernel/user pair.
 - There is no scheduler/process abstraction in the current public API; event hooks return the next user context or `UCTXT_IDLE`.
+- The entry-hook contract is return-based today; the task-log Murgia/MH roadmap proposes input-frame mutation instead, but no tracked implementation exists yet.
 - i386 TLS is explicitly ignored in `hal_frame_settls()` (`libhal_x86/i386/sys_entry.c`).
 - The example initializes only a boot-time user context; broader lifecycle rules for multiple user address spaces are left to kernels using NUX.
 - `uctxt_seta2()` appears to set argument register 1 instead of argument register 2 (`libnux/uctxt.c`); verify before depending on it.

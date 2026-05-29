@@ -35,7 +35,7 @@ APXH owns early boot payload loading, early memory map normalization, initial pa
 
 ### HAL (`libhal_x86`, `libhal_riscv`)
 
-The HAL abstracts CPU instructions, interrupt frames, page-table leaf entries, TLB operations, virtual-memory areas, physical-memory descriptions, and CPU bring-up. The interface is declared in `include/nux/hal.h`.
+The HAL abstracts CPU instructions, interrupt frames, page-table leaf entries, TLB operations, virtual-memory areas, physical-memory descriptions, and CPU bring-up. The interface is declared in `include/nux/hal.h`. Current tracked code exposes leaf-level `hal_l1p_t`/`hal_l1e_t` operations; a task-log/base-checkout roadmap note for the basic Murgia/MH port asks for future `ROOTPTE`/`ROOTPTEP` and `LEAFPTE`/`LEAFPTEP` abstractions, but those root/leaf PTE names are not implemented today.
 
 - x86 common code is in `libhal_x86/x86.c` and `libhal_x86/pmap.c`; `libhal_x86/i386/*` and `libhal_x86/amd64/*` implement architecture-specific frames, entry stubs, paging, and secondary CPU bootstrap.
 - RISC-V code is in `libhal_riscv/riscv.c`, `libhal_riscv/pmap.c`, `libhal_riscv/sv48.c`, and `libhal_riscv/entry.S`.
@@ -78,4 +78,5 @@ The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and 
 
 - RISC-V platform support has explicit TODOs for secondary CPU start, platform CPU enter, external IRQs, IRQ enable/disable/type/max, and EOI (`libhal_riscv/riscv.c`, `libplt_sbi/sbi.c`).
 - x86 user-access hardening has TODO placeholders for SMEP in `libhal_x86/x86.c`.
+- Basic Murgia/MH porting has task-log roadmap dependencies for HAL root/leaf PTE abstractions and an input-frame-mutating entry-hook contract; these are not tracked-source implementations yet.
 - The README's boot-support claims and APXH configure logic are not fully aligned; see [hardware support](hardware-support.md) and [backlog](backlog.md).

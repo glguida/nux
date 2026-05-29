@@ -1,6 +1,6 @@
 # Backlog and capability roadmap
 
-This backlog is source-inspected only unless a verification result is explicitly mentioned.
+This backlog is source-inspected only unless a verification result, task-log item, or base-checkout artifact is explicitly labeled.
 
 ## P0: build and documentation blockers
 
@@ -22,52 +22,65 @@ This backlog is source-inspected only unless a verification result is explicitly
 
 ## P1: correctness and runtime capability gaps
 
-1. **Fix `uctxt_seta2()`.**
+1. **Define HAL root/leaf PTE abstractions for the basic Murgia/MH port.**
+   - Evidence: task-log comment `2026-05-29T19:19:31Z` records an untracked base-checkout `/home/glguida/the_nux/TODO` note; planner comment `2026-05-29T19:34:18Z` required documenting it. This is task-log/base-checkout evidence, not tracked source evidence.
+   - Current behavior: tracked `include/nux/hal.h` exposes leaf page-table pointer/entry APIs (`hal_l1p_t`, `hal_l1e_t`, `hal_kmap_getl1p()`, `hal_umap_getl1p()`, and `hal_l1e_*()`), and `libnux/kmap.c`/`libnux/umap.c` use those leaf entries for kernel and user mappings.
+   - Roadmap design note: introduce `ROOTPTE`/`ROOTPTEP` and `LEAFPTE`/`LEAFPTEP`; `LEAFPTE` is intended to match current L1/leaf behavior. `ROOTPTE` should represent root/intermediate flags rather than boxing a data page, should support trimming non-present roots and removing intermediate page tables, and must preserve sharing semantics when mappings contain the same PTEs.
+   - Next slice: draft the API in `include/nux/hal.h`, then update x86 and RISC-V page-table implementations (`libhal_x86/pmap.c`, `libhal_x86/i386/pae32.c`, `libhal_x86/amd64/pae64.c`, `libhal_riscv/pmap.c`, `libhal_riscv/sv48.c`) plus KMAP/UMAP callers after review.
+2. **Change entry hooks to mutate the input frame instead of returning a replacement context.**
+   - Evidence: task-log comment `2026-05-29T19:19:31Z` records the base-checkout TODO note: “all entry function should not return a frame. Frame in input should be modified with return data.” Planner comment `2026-05-29T19:34:18Z` tied this to the required docs fix.
+   - Current behavior: `include/nux/nux.h` declares `entry_sysc()`, `entry_pf()`, `entry_ex()`, `entry_alarm()`, `entry_ipi()`, and `entry_irq()` as returning `uctxt_t *`; `libnux/entry.c` assigns those return values and converts them with `uctxt_frame()`; `libnux/uctxt.c` handles `UCTXT_IDLE`, `UCTXT_INVALID`, and frame-pointer conversion.
+   - Roadmap status: not implemented. A design needs to preserve idle/switch semantics and syscall return data while making the interrupted/input frame the mutation target.
+   - Next slice: draft the API migration, update `include/nux/nux.h`, `libnux/entry.c`, `libnux/uctxt.c`, and `example/kern/main.c`, then add a syscall/page-fault smoke check for one architecture.
+3. **Fix `uctxt_seta2()`.**
    - Evidence: `libnux/uctxt.c` calls `hal_frame_seta1(f, a2)` inside `uctxt_seta2()`.
    - Next slice: change to `hal_frame_seta2()`, add a small kernel/user check using `uctxt_seta2`, and verify on one architecture.
-2. **Review user-address range validation.**
+4. **Review user-address range validation.**
    - Evidence: `libnux/uaddr.c` has unused malformed macros and `uaddr_validrange()` validates `a + size` rather than the last byte; overflow/zero-length behavior is undocumented.
    - Next slice: define desired boundary semantics and add tests or assertions.
-3. **Review KVA allocator removal.**
+5. **Review KVA allocator removal.**
    - Evidence: `libnux/kva.c` `vmap_remove()` calls `kmem_alloc(0, sizeof(struct vme))`, which looks like a typo for freeing the metadata node.
    - Next slice: inspect allocator invariants, fix if confirmed, and add a simple KVA allocate/free stress test.
-4. **Complete or document RISC-V SMP support.**
+6. **Complete or document RISC-V SMP support.**
    - Evidence: `libhal_riscv/riscv.c` has TODOs in `hal_pcpu_init()` and `hal_pcpu_startaddr()` and returns `PADDR_INVALID` for secondary start.
    - Next slice: decide whether SBI HSM or another start mechanism should be used.
-5. **Complete or document RISC-V external IRQ/PLIC support.**
+7. **Complete or document RISC-V external IRQ/PLIC support.**
    - Evidence: `libplt_sbi/sbi.c` TODOs cover IRQ type, enable/disable/max, EOI, platform CPU enter/start, and external interrupt dispatch.
    - Next slice: wire PLIC contexts discovered from DTB to `plt_interrupt()` and IRQ APIs.
-6. **Define the RISC-V EFI platform contract.**
+8. **Define the RISC-V EFI platform contract.**
    - Evidence: APXH EFI has RISC-V entry code but returns `PLT_ACPI`; the configured RISC-V platform library requires `PLT_DTB`.
    - Next slice: decide whether RISC-V EFI should use ACPI, DTB handoff, or be disabled until supported.
-7. **Add x86 SMEP/user-access hardening.**
+9. **Add x86 SMEP/user-access hardening.**
    - Evidence: `libhal_x86/x86.c` has TODOs in `hal_useraccess_start()` and `hal_useraccess_end()`.
    - Next slice: implement CR4.SMEP/SMAP-aware behavior or explicitly document unsupported CPU hardening.
-8. **Improve framebuffer correctness.**
-   - Evidence: `libnux/framebuffer.c` has XXX comments for RGB masks, bounds checking, and rewrite need.
-   - Next slice: honor framebuffer masks and clamp writes; add a QEMU visual/serial smoke check.
-9. **Clarify i386 TLS support.**
-   - Evidence: `libhal_x86/i386/sys_entry.c` states `hal_frame_settls()` is ignored because i386 TLS needs LDT support.
-   - Next slice: document as unsupported or add LDT/TLS support.
-10. **ACPI/x86 hardware expansion.**
+10. **Improve framebuffer correctness.**
+    - Evidence: `libnux/framebuffer.c` has XXX comments for RGB masks, bounds checking, and rewrite need.
+    - Next slice: honor framebuffer masks and clamp writes; add a QEMU visual/serial smoke check.
+11. **Clarify i386 TLS support.**
+    - Evidence: `libhal_x86/i386/sys_entry.c` states `hal_frame_settls()` is ignored because i386 TLS needs LDT support.
+    - Next slice: document as unsupported or add LDT/TLS support.
+12. **ACPI/x86 hardware expansion.**
     - Evidence: `libplt_acpi/acpi.c` ignores LSAPIC, x2APIC, IOSAPIC, and LX2APICNMI entries.
     - Next slice: prioritize x2APIC if modern hardware support is a near-term goal.
 
 ## P2: usability, tests, and polish
 
-1. **Create an automated smoke target.**
+1. **Preserve and analyze `PORTING_0_EM` as a binary artifact, not documentation.**
+   - Evidence: task-log comment `2026-05-29T19:19:31Z` identifies `/home/glguida/the_nux/PORTING_0_EM` as a base-checkout binary/ELF artifact to preserve. A local magic-byte check in this fix job read `7f454c46` (`ELF`) and size `303904` bytes; `file(1)` was unavailable in the container.
+   - Next slice: if analysis is authorized, inspect it with appropriate binary tools (`readelf`, `objdump`, or equivalent) and record metadata separately. Do not edit it, delete it, or treat it as Markdown/source documentation.
+2. **Create an automated smoke target.**
    - Evidence: only manual `make qemu`/`make qemu_dbg` targets were found.
    - Next slice: add a timeout-based QEMU smoke script that checks for expected serial output.
-2. **Add GDB/debugging helpers.**
+3. **Add GDB/debugging helpers.**
    - Evidence: QEMU debug target exists but no GDB scripts were found.
    - Next slice: add docs or scripts for loading symbols and connecting to `:1234`.
-3. **Document syscall ABI stability.**
+4. **Document syscall ABI stability.**
    - Evidence: `libnux_user` wraps syscalls, but syscall numbers are example-local (`4096` putchar, `4097` exit in `example/kern/main.c`/`example/user/main.c`).
    - Next slice: either publish a minimal NUX syscall convention or explicitly state that kernels own their syscall ABI.
-4. **Expand Murgia requirements as they arrive.**
-   - Evidence: no concrete Murgia requirements were present in this task.
-   - Next slice: add trace rows to `docs/murgia-integration.md` when Murgia sends requirements.
-5. **Clean README and install docs.**
+5. **Keep Murgia requirements traceable as they arrive.**
+   - Evidence: `docs/murgia-integration.md` now records the task-log-backed `MURGIA-MH-001` roadmap dependency; no broader Murgia handoff requirements are present yet.
+   - Next slice: add trace rows to `docs/murgia-integration.md` when Murgia sends additional durable requirements.
+6. **Clean README and install docs.**
    - Evidence: README has minor typos and a malformed closing fence in the build snippet; `install.sh` contains only a TODO comment.
    - Next slice: fix README after build commands are verified and either implement or remove/document `install.sh`.
 
