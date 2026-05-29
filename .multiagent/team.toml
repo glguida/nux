@@ -1,0 +1,22 @@
+# Default MULTIAGENT team. Materialize this file with:
+#   multiagent local team edit
+
+[[agent]]
+name = "planner-1"
+role = "planner"
+mode = "worker"
+
+[[agent]]
+name = "implementer-1"
+role = "implementer"
+mode = "worker"
+
+[[agent]]
+name = "reviewer-1"
+role = "reviewer"
+mode = "worker"
+
+[[agent]]
+name = "committer-1"
+role = "committer"
+mode = "worker"
