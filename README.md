@@ -28,10 +28,14 @@ On the userspace side, NUX provides `libnux_user`, that defines the syscall inte
 and _libec_, the same embedded C library used by the kernel side.
 
 NUX kernels are booted by APXH (uppercase for αρχη, or _beginning_ in ancient greek).
-APXH currently supports:
-- `EFI` on i386, amd64 and riscv64
-- `multiboot` on i386 and amd64
-- `SBI` (riscv64).
+Configured APXH boot paths are architecture-specific:
+- i386: `multiboot`
+- amd64: `multiboot` and `EFI`
+- riscv64: `SBI` and `EFI`
+
+The verified path in the current task environment is i386/multiboot. Non-i386
+build/runtime flows and the RISC-V EFI platform contract still need verification;
+see [docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
 
@@ -105,9 +109,12 @@ or
 
 **Note for RISCV64:**
 
-NUX will attempt to build APXH with EFI support on riscv64. This is done using `gnu-efi`.
-If you are _not_ using the toolchain built with `gcc_toolchain_build`, this will fail.
-
-If you still intend to use another toolchain, then you have to edit apxh/Makefile.in,
-removing 'efi' from the list of `SUBDIRS`.
+For `ARCH=riscv64`, APXH configure currently selects both `sbi` and `efi`.
+The SBI/DTB path is the coherent configured runtime path. RISC-V EFI source
+exists and uses `gnu-efi`, but its platform-descriptor contract and full
+build/runtime flow are unverified. If a non-`gcc_toolchain_build` toolchain
+fails while building EFI, treat that as an open portability/configure-policy
+issue rather than hand-editing generated build files; see
+[docs/hardware-support.md](docs/hardware-support.md) and
+[docs/backlog.md](docs/backlog.md).
 

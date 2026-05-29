@@ -30,9 +30,10 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Historical evidence: top-level, APXH, and example `configure.ac` defined `AC_ARG_ENABLE([werror])` but tested `enable_relax` rather than `enable_werror`.
    - Current status: top-level, APXH, and example configure inputs now test `enable_werror`; the generated `configure` scripts were regenerated and verified so default configure keeps `-Werror` while `--disable-werror` omits it from generated build flags.
    - Follow-up trigger: if new configure inputs are added, keep the `AC_ARG_ENABLE([werror])` variable and generated scripts in sync.
-7. **Reconcile README boot-support claims with configure behavior.**
-   - Evidence: README says APXH supports EFI on i386, amd64, and riscv64. The current APXH configure selection is `multiboot` only for i386, `multiboot efi` for amd64, and `sbi efi` for riscv64.
-   - Next slice: decide whether the README, configure logic, or both should change.
+7. **README boot-support claims are reconciled with configure behavior.**
+   - Historical evidence: README said APXH supported EFI on i386, amd64, and riscv64 even though the APXH configure selection is `multiboot` only for i386, `multiboot efi` for amd64, and `sbi efi` for riscv64.
+   - Current status: README now describes configured APXH boot paths by architecture: i386 -> `multiboot`, amd64 -> `multiboot efi`, and riscv64 -> `sbi efi`. It also states that the verified task path is i386/multiboot and that non-i386 build/runtime flows plus the RISC-V EFI platform contract remain unverified.
+   - Follow-up trigger: reopen only if configure behavior changes or target-toolchain/runtime verification proves a different support claim. Full amd64/riscv64 verification remains tracked in the architecture-specific follow-ups.
 
 ## P1: correctness and runtime capability gaps
 

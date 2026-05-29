@@ -6,7 +6,7 @@ This matrix distinguishes configured support, source-level support, and gaps fou
 
 | Architecture | Configure support | HAL | Platform library | APXH paths in source/config | Status notes |
 | --- | --- | --- | --- | --- | --- |
-| `i386` | Yes (`configure.ac`) | `libhal_x86` i386 | `libplt_acpi` | `apxh/multiboot`; EFI source has i386 settings in `apxh/efi/Makefile.in` but `apxh/configure.ac` selects only `multiboot` for i386 | Multiboot + ACPI is the configured path. README's EFI-on-i386 claim needs reconciliation with configure. |
+| `i386` | Yes (`configure.ac`) | `libhal_x86` i386 | `libplt_acpi` | `apxh/multiboot`; EFI source has i386 settings in `apxh/efi/Makefile.in` but `apxh/configure.ac` selects only `multiboot` for i386 | Multiboot + ACPI is the configured path. README now reflects this configure behavior; do not claim i386 EFI support until configure policy and runtime verification change. |
 | `amd64` | Yes (`configure.ac`) | `libhal_x86` amd64 | `libplt_acpi` | `apxh/configure` selects `multiboot efi` | Source has amd64 HAL, multiboot, EFI, ACPI, LAPIC/IOAPIC/HPET support. APXH subdir selection is script-verified; full amd64 build/runtime verification still needs an amd64 target-toolchain path. |
 | `riscv64` | Yes (`configure.ac`) | `libhal_riscv` | `libplt_sbi` | `apxh/configure` selects `sbi efi`; EFI RISC-V code exists in `apxh/efi/apxhefi/efi_md.c` | SBI/DTB is the coherent configured path. APXH subdir selection is script-verified; RISC-V EFI platform-descriptor compatibility and full build/runtime remain unverified. |
 
@@ -25,7 +25,7 @@ Known gaps:
 - x2APIC, LSAPIC, IOSAPIC entries are explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`).
 - x86 `hal_useraccess_start/end` have TODO placeholders for SMEP handling (`libhal_x86/x86.c`).
 - i386 TLS setup is explicitly ignored in `hal_frame_settls` (`libhal_x86/i386/sys_entry.c`).
-- EFI support still needs full architecture-specific configure/build/runtime verification, especially i386 EFI and non-i386 target-toolchain paths; APXH subdir selection is no longer blocked by the malformed generated configure case.
+- EFI support still needs full architecture-specific configure/build/runtime verification. i386 EFI source/settings are present but not selected by APXH configure; non-i386 target-toolchain paths and runtime smoke tests remain open. APXH subdir selection is no longer blocked by the malformed generated configure case.
 
 ## RISC-V / SBI support
 

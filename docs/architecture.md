@@ -79,4 +79,4 @@ The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and 
 - RISC-V platform support has explicit TODOs for secondary CPU start, platform CPU enter, external IRQs, IRQ enable/disable/type/max, and EOI (`libhal_riscv/riscv.c`, `libplt_sbi/sbi.c`).
 - x86 user-access hardening has TODO placeholders for SMEP in `libhal_x86/x86.c`.
 - Basic Murgia/MH porting has task-log roadmap dependencies for HAL root/leaf PTE abstractions and an input-frame-mutating entry-hook contract; these are not tracked-source implementations yet.
-- The README's boot-support claims and APXH configure logic are not fully aligned; see [hardware support](hardware-support.md) and [backlog](backlog.md).
+- APXH boot-path verification is still incomplete beyond the reviewed i386/multiboot path: amd64 multiboot/EFI and riscv64 SBI/EFI need real target-toolchain/runtime verification, and the RISC-V EFI platform contract remains unresolved; see [hardware support](hardware-support.md) and [backlog](backlog.md).
