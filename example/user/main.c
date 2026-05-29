@@ -1,6 +1,8 @@
 #include <nux/syscalls.h>
 #include <stdio.h>
 
+#define UCTXT_SETA2_TEST_MAGIC 0x2a2a2a2UL
+
 void
 putchar (int c)
 {
@@ -13,6 +15,43 @@ exit (int status)
   syscall1 (4097, status);
 }
 
+int puts (const char *s);
+
+static unsigned long
+syscall_uctxt_seta2_probe (void)
+{
+#if defined(__i386__)
+  unsigned long sys = 7;
+  unsigned long a2 = 0;
+
+  asm volatile ("int $0x21"
+		: "+a" (sys), "+c" (a2)
+		:
+		: "memory");
+  return a2;
+#elif defined(__x86_64__)
+  unsigned long sys = 7;
+  unsigned long a2 = 0;
+
+  asm volatile ("syscall"
+		: "+a" (sys), "+d" (a2)
+		:
+		: "rcx", "r11", "memory");
+  return a2;
+#elif defined(__riscv) && __riscv_xlen == 64
+  register unsigned long sys __asm__ ("a0") = 7;
+  register unsigned long a2 __asm__ ("a2") = 0;
+
+  asm volatile ("ecall"
+		: "+r" (sys), "+r" (a2)
+		:
+		: "memory");
+  return a2;
+#else
+#error Unsupported architecture for syscall_uctxt_seta2_probe
+#endif
+}
+
 void
 test (void)
 {
@@ -23,6 +62,14 @@ test (void)
   syscall4 (4, 1, 2, 3, 4);
   syscall5 (5, 1, 2, 3, 4, 5);
   syscall6 (6, 1, 2, 3, 4, 5, 6);
+
+  if (syscall_uctxt_seta2_probe () != UCTXT_SETA2_TEST_MAGIC)
+    {
+      puts ("UCTXT_SETA2 user test failed.\n");
+      exit (100);
+    }
+
+  puts ("UCTXT_SETA2 user test passed.\n");
 }
 
 int

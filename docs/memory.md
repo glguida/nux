@@ -110,7 +110,7 @@ Callers are responsible for synchronizing concurrent access to the same UMAP; `l
 
 ## Memory-related backlog flags
 
-- `libnux/uctxt.c` sets argument register 2 through `hal_frame_seta1()` instead of `hal_frame_seta2()`.
+- The historical `uctxt_seta2()` setter bug was fixed in `libnux/uctxt.c`; the helper now calls `hal_frame_seta2()` and is covered by the example kernel/user `UCTXT_SETA2` smoke check.
 - `libnux/uaddr.c` has unused macros with an obviously malformed comparison and should get boundary/overflow tests.
 - `libnux/kva.c` appears to call `kmem_alloc()` in `vmap_remove()` where freeing would be expected; verify and fix if confirmed.
 - `libnux/framebuffer.c` marks RGB masks and bounds handling as incomplete.

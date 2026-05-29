@@ -159,7 +159,7 @@ uctxt_seta2 (uctxt_t * uctxt, unsigned long a2)
 {
   struct hal_frame *f = uctxt_frame_pointer (uctxt);
   assert (f);
-  hal_frame_seta1 (f, a2);
+  hal_frame_seta2 (f, a2);
 }
 
 void

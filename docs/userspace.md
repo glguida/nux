@@ -74,4 +74,4 @@ The example user program defines `putchar` as syscall `4096` and `exit` as sysca
 - The entry-hook contract is return-based today; the task-log Murgia/MH roadmap proposes input-frame mutation instead, but no tracked implementation exists yet.
 - i386 TLS is explicitly ignored in `hal_frame_settls()` (`libhal_x86/i386/sys_entry.c`).
 - The example initializes only a boot-time user context; broader lifecycle rules for multiple user address spaces are left to kernels using NUX.
-- `uctxt_seta2()` appears to set argument register 1 instead of argument register 2 (`libnux/uctxt.c`); verify before depending on it.
+- `uctxt_seta2()` now delegates to `hal_frame_seta2()` in `libnux/uctxt.c`; the example kernel/user smoke checks the setter by writing and reading back a known third-argument-register value across a syscall return.

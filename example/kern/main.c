@@ -12,6 +12,8 @@
 
 #include <nux/hal.h>
 
+#define UCTXT_SETA2_TEST_MAGIC 0x2a2a2a2UL
+
 uctxt_t u_init;
 struct hal_umap umap;
 
@@ -130,6 +132,10 @@ entry_sysc (uctxt_t * u,
       assert (a6 == 5);
       assert (a7 == 6);
       info ("SYSC%ld test passed.", a1);
+      break;
+    case 7:
+      uctxt_seta2 (u, UCTXT_SETA2_TEST_MAGIC);
+      info ("UCTXT_SETA2 test passed.");
       break;
     case 4096:
       putchar (a2);

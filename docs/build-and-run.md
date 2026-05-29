@@ -178,8 +178,10 @@ In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `ma
 - `Hello from userspace, NUX!`
 - `SYSC0 test passed.`
 - `SYSC6 test passed.`
+- `UCTXT_SETA2 test passed.`
+- `UCTXT_SETA2 user test passed.`
 - `User exited with error code: 42`
 
-Representative logs for the stable-path verification are `/tmp/the-nux-i386-qemu-doc-toolchain-configure-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-make-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-i386.txt`, and `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-markers.txt`.
+Representative logs for the original stable-path verification are `/tmp/the-nux-i386-qemu-doc-toolchain-configure-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-make-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-i386.txt`, and `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-markers.txt`. The `uctxt_seta2()` fix repeated the flow from `/tmp/the-nux-uctxt-seta2-build-i386` after initializing submodules in its dedicated worktree; logs are `/tmp/the-nux-uctxt-seta2-configure-i386.txt`, `/tmp/the-nux-uctxt-seta2-make-i386.txt`, `/tmp/the-nux-uctxt-seta2-qemu-i386.txt`, and `/tmp/the-nux-uctxt-seta2-qemu-markers.txt`.
 
-Remaining build/run gaps are not the old host compiler, i386 target-toolchain, or i386 QEMU blockers. The open items are the still-unverified submodule-dependent paths, amd64/riscv64 configure/build/QEMU smokes, and the source fixes tracked in `docs/backlog.md`.
+Remaining build/run gaps are not the old host compiler, i386 target-toolchain, i386 QEMU blocker, or i386 submodule initialization. The open items are amd64/riscv64 configure/build/QEMU smokes, broader submodule-dependent path verification outside i386, and the source fixes tracked in `docs/backlog.md`.

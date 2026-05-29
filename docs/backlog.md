@@ -16,11 +16,12 @@ This backlog is source-inspected only unless a verification result, task-log ite
 3. **i386 QEMU runtime smoke blocker is resolved in this container.**
    - Historical blocker: the reviewed target-toolchain slice said `make qemu` failed at `qemu-system-i386: No such file or directory`; `qemu-system-x86_64` was also absent.
    - Current reviewed status: apt package `qemu-system-x86` is installed with `--no-install-recommends`, providing `/usr/bin/qemu-system-i386` and `/usr/bin/qemu-system-x86_64` at QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
-   - Verification: fresh `/tmp/the-nux-i386-qemu-stable-path-build-i386` with stable `TOOLBIN` prepended to `PATH` passed `ARCH=i386` configure, `make -j"$(nproc)"`, and a bounded `timeout --foreground 20s make qemu`. The command returned rc 124 only after serial success markers appeared: `APXH started.`, `NUX library (nux)`, userspace hello, `SYSC0`/`SYSC6` passed, and `User exited with error code: 42`.
+   - Verification: fresh `/tmp/the-nux-i386-qemu-stable-path-build-i386` with stable `TOOLBIN` prepended to `PATH` passed `ARCH=i386` configure, `make -j"$(nproc)"`, and a bounded `timeout --foreground 20s make qemu`. The command returned rc 124 only after serial success markers appeared: `APXH started.`, `NUX library (nux)`, userspace hello, `SYSC0`/`SYSC6` passed, and `User exited with error code: 42`. The later `uctxt_seta2()` fix repeated the same flow from `/tmp/the-nux-uctxt-seta2-build-i386` and added `UCTXT_SETA2 test passed.` plus `UCTXT_SETA2 user test passed.` markers.
    - Follow-up trigger: add a checked-in timeout/marker smoke harness if repeatability is needed beyond manual task logs.
-4. **Initialize and verify required submodules.**
-   - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; worktree `git submodule status` showed them uninitialized with leading `-`.
-   - Next slice: initialize submodules in a clean worktree and rerun configure/build.
+4. **Submodules are initialized and verified for the i386 smoke path in this task workspace.**
+   - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; the `uctxt_seta2()` worktree initially showed them uninitialized with leading `-`.
+   - Current i386 status: `git submodule update --init --recursive` in `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/worktree-uctxt-seta2` checked out the pinned submodule commits, after which the fresh i386 configure/build/QEMU smoke passed with the stable `TOOLBIN`.
+   - Follow-up trigger: verify amd64/riscv64 submodule-dependent paths separately. The current build invokes `contrib/binutils` configure/make in the source submodule, so dedicated verification worktrees may need cleanup of generated files after builds; do not clean the dirty base checkout without authorization.
 5. **Fix APXH configure architecture selection.**
    - Evidence: `apxh/configure.ac` is missing a separator between the `amd64` and `riscv64` `AS_CASE` branches; generated `apxh/configure` shows an obviously malformed amd64 branch and has an error message that omits `riscv64`.
    - Next slice: fix `apxh/configure.ac`, run `./bootstrap.sh`, and verify `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64` APXH subdir selection.
@@ -43,9 +44,10 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Current behavior: `include/nux/nux.h` declares `entry_sysc()`, `entry_pf()`, `entry_ex()`, `entry_alarm()`, `entry_ipi()`, and `entry_irq()` as returning `uctxt_t *`; `libnux/entry.c` assigns those return values and converts them with `uctxt_frame()`; `libnux/uctxt.c` handles `UCTXT_IDLE`, `UCTXT_INVALID`, and frame-pointer conversion.
    - Roadmap status: not implemented. A design needs to preserve idle/switch semantics and syscall return data while making the interrupted/input frame the mutation target.
    - Next slice: draft the API migration, update `include/nux/nux.h`, `libnux/entry.c`, `libnux/uctxt.c`, and `example/kern/main.c`, then add a syscall/page-fault smoke check for one architecture.
-3. **Fix `uctxt_seta2()`.**
-   - Evidence: `libnux/uctxt.c` calls `hal_frame_seta1(f, a2)` inside `uctxt_seta2()`.
-   - Next slice: change to `hal_frame_seta2()`, add a small kernel/user check using `uctxt_seta2`, and verify on one architecture.
+3. **`uctxt_seta2()` setter bug is fixed.**
+   - Historical evidence: `libnux/uctxt.c` called `hal_frame_seta1(f, a2)` inside `uctxt_seta2()`.
+   - Current status: `uctxt_seta2()` now calls `hal_frame_seta2()`. The example kernel/user smoke includes syscall `7`, where the kernel uses `uctxt_seta2()` to write a known magic value into the resumed user frame's third argument register and userspace verifies it after the syscall returns.
+   - Follow-up trigger: keep the `UCTXT_SETA2` serial markers in the i386 QEMU smoke output or replace them with a checked-in automated smoke harness if one is added later.
 4. **Review user-address range validation.**
    - Evidence: `libnux/uaddr.c` has unused malformed macros and `uaddr_validrange()` validates `a + size` rather than the last byte; overflow/zero-length behavior is undocumented.
    - Next slice: define desired boundary semantics and add tests or assertions.
