@@ -49,11 +49,48 @@ uaddr_validrange_test (void)
   info ("UADDR_VALIDRANGE test passed.");
 }
 
+static void
+kva_alloc_free_test (void)
+{
+  vaddr_t kmem_before = kmem_sbrk (0, 0);
+
+  for (int i = 0; i < 64; i++)
+    {
+      const size_t b_size = 2 * PAGE_SIZE - 17;
+      const size_t c_size = 3 * PAGE_SIZE + 123;
+      vaddr_t a, b, c, d;
+
+      a = kva_alloc (PAGE_SIZE);
+      b = kva_alloc (b_size);
+      c = kva_alloc (c_size);
+
+      assert (a != VADDR_INVALID);
+      assert (b != VADDR_INVALID);
+      assert (c != VADDR_INVALID);
+      assert (a == trunc_page (a));
+      assert (b == trunc_page (b));
+      assert (c == trunc_page (c));
+
+      kva_free (b, b_size);
+      d = kva_alloc (PAGE_SIZE);
+      assert (d != VADDR_INVALID);
+      assert (d == trunc_page (d));
+
+      kva_free (a, PAGE_SIZE);
+      kva_free (d, PAGE_SIZE);
+      kva_free (c, c_size);
+    }
+
+  assert (kmem_sbrk (0, 0) == kmem_before);
+  info ("KVA_ALLOC_FREE test passed.");
+}
+
 int
 main (int argc, char *argv[])
 {
   printf ("Hello, %s (%" PRIx64 ")!", argv[1], timer_gettime ());
   uaddr_validrange_test ();
+  kva_alloc_free_test ();
 
   timer_alarm (1 * 1000 * 1000 * 1000);
 

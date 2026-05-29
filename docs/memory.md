@@ -69,7 +69,7 @@ The HAL comment in `include/nux/hal.h` states that KMAP mappings are static and 
 
 ## KVA
 
-KVA is a virtual-address allocator for kernel mappings (`libnux/kva.c`). It manages a free/allocated virtual range using a red-black tree plus the generic zone allocator.
+KVA is a virtual-address allocator for kernel mappings (`libnux/kva.c`). It manages a free/allocated virtual range using a red-black tree plus the generic zone allocator. The red-black tree entries are `struct vme` metadata nodes allocated from high KMEM with `kmem_alloc(0, sizeof(struct vme))`; removal must return those nodes with the matching `kmem_free()` call after unlinking them.
 
 - `kva_alloc(size)` reserves page-rounded virtual address space.
 - `kva_map(pfn, prot)` reserves one page, maps it through KMAP, commits, and returns a pointer.
@@ -112,5 +112,5 @@ Callers are responsible for synchronizing concurrent access to the same UMAP; `l
 
 - The historical `uctxt_seta2()` setter bug was fixed in `libnux/uctxt.c`; the helper now calls `hal_frame_seta2()` and is covered by the example kernel/user `UCTXT_SETA2` smoke check.
 - The historical `libnux/uaddr.c` range-check bug is fixed: stale malformed macros were removed, `uaddr_validrange()` now checks half-open ranges without overflowing, and the example i386 smoke prints `UADDR_VALIDRANGE test passed.` after covering boundary/zero-length/overflow cases.
-- `libnux/kva.c` appears to call `kmem_alloc()` in `vmap_remove()` where freeing would be expected; verify and fix if confirmed.
+- The historical `libnux/kva.c` metadata-removal bug is fixed: `vmap_remove()` now frees removed `struct vme` nodes with `kmem_free()` instead of allocating another node, and the example i386 smoke prints `KVA_ALLOC_FREE test passed.` after repeated balanced KVA allocation/free churn.
 - `libnux/framebuffer.c` marks RGB masks and bounds handling as incomplete.

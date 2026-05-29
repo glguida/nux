@@ -43,7 +43,7 @@ vmap_remove (struct vme *vme)
   /* ASSERT ISA(vme) XXX: */
   rb_tree_remove_node (&vmap_rbtree, (void *) vme);
   vmap_size -= vme->size;
-  kmem_alloc (0, sizeof (struct vme));
+  kmem_free (0, (vaddr_t) vme, sizeof (struct vme));
 }
 
 static struct vme *
