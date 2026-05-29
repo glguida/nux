@@ -18,6 +18,24 @@ make qemu_dbg
 
 No repository GDB script was found during this pass. A typical manual flow after `make qemu_dbg` is to start the matching target GDB, connect to `:1234`, load symbols for the built kernel, set breakpoints, then continue.
 
+## Timeout-based i386 smoke workflow
+
+The current container has a reviewed i386 smoke workflow. Use the stable task-workspace target toolchain path rather than the older `/tmp` toolchain install:
+
+```sh
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
+BUILD=/tmp/the-nux-i386-qemu-stable-path-build-i386
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+cd "$BUILD"
+PATH="$TOOLBIN:$PATH" /home/glguida/the_nux/configure ARCH=i386
+PATH="$TOOLBIN:$PATH" make -j"$(nproc)"
+cd example
+PATH="$TOOLBIN:$PATH" timeout --foreground 20s make qemu
+```
+
+A timeout rc 124 is expected for this smoke because the guest idles after userspace exits. Count it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, and `User exited with error code: 42`.
+
 ## Logging paths
 
 Kernel code uses `printf`, `info`, `warn`, `error`, `fatal`, and `debug` macros from `include/nux/nux.h`. `putchar` is routed to `hal_putchar` by `libnux/ec.c`.

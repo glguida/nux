@@ -144,12 +144,42 @@ checking for i686-unknown-elf-gcc... no
 configure: error: i686-unknown-elf-gcc not found
 ```
 
-A subsequent reviewed target-toolchain slice built the README-recommended `gcc_toolchain_build` i386 tools under `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin`. Without that directory on `PATH`, `i686-unknown-elf-gcc`, `ld`, `ar`, and `objcopy` are still absent. With it prepended, reviewer-verified fresh `ARCH=i386` configure and `make -j"$(nproc)"` passed and produced `example/example_qemu`:
+A subsequent reviewed target-toolchain slice built the README-recommended `gcc_toolchain_build` i386 tools under `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin` at source commit `eecef0929616a96517a83dab988a8429ad8c62d8`. The `/tmp` install remains useful provenance, but it is not the documented current path.
+
+The current reviewed i386 toolchain path for this container is the stable task-workspace install copied from that reviewed `/tmp` build:
 
 ```sh
-TOOLBIN=/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin
-PATH="$TOOLBIN:$PATH" /home/glguida/the_nux/configure ARCH=i386
-PATH="$TOOLBIN:$PATH" make -j"$(nproc)"
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
 ```
 
-The current reviewed runtime blocker is QEMU, not the host compiler or i386 configure/build: `qemu-system-i386` and `qemu-system-x86_64` are not installed in this container. The toolchain also still needs a stable-location policy if `/tmp` is not durable enough for ongoing work.
+With `PATH="$TOOLBIN:$PATH"`, `i686-unknown-elf-gcc` 14.2.0 and Binutils 2.43.1 `ld`/`ar`/`objcopy` resolve from that stable `TOOLBIN`. Do not commit the toolchain into this repository; it is an external task-workspace artifact.
+
+The i386 QEMU runtime blocker is also resolved in this container. The reviewed package install requested `qemu-system-x86` with `--no-install-recommends`, which provides both `/usr/bin/qemu-system-i386` and `/usr/bin/qemu-system-x86_64`; both report QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
+
+Current reviewed i386 smoke flow:
+
+```sh
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
+BUILD=/tmp/the-nux-i386-qemu-stable-path-build-i386
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+cd "$BUILD"
+PATH="$TOOLBIN:$PATH" /home/glguida/the_nux/configure ARCH=i386
+PATH="$TOOLBIN:$PATH" make -j"$(nproc)"
+cd example
+PATH="$TOOLBIN:$PATH" timeout --foreground 20s make qemu
+```
+
+In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `make qemu` returned timeout rc 124 because the guest idled after success; treat that timeout as acceptable only when the serial log already contains the success markers:
+
+- `APXH started.`
+- `NUX library (nux)`
+- `Hello,`
+- `Hello from userspace, NUX!`
+- `SYSC0 test passed.`
+- `SYSC6 test passed.`
+- `User exited with error code: 42`
+
+Representative logs for the stable-path verification are `/tmp/the-nux-i386-qemu-doc-toolchain-configure-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-make-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-i386.txt`, and `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-markers.txt`.
+
+Remaining build/run gaps are not the old host compiler, i386 target-toolchain, or i386 QEMU blockers. The open items are the still-unverified submodule-dependent paths, amd64/riscv64 configure/build/QEMU smokes, and the source fixes tracked in `docs/backlog.md`.

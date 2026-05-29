@@ -59,4 +59,12 @@ The example makefile defines QEMU smoke targets for all configured architectures
 - amd64: `qemu-system-x86_64`
 - riscv64: `qemu-system-riscv64 -M virt`
 
-These targets were source-inspected during the initial docs pass. The old missing-host-compiler blocker has since been resolved in this container. The reviewed i386 target-toolchain slice now passes configure/build with `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin` prepended to `PATH`; without that prefix, the target tools are still absent. The current runtime smoke blocker is QEMU: `qemu-system-i386` and `qemu-system-x86_64` are not installed.
+Current reviewed container status:
+
+| Architecture | QEMU status in this container | Verification status |
+| --- | --- | --- |
+| `i386` | `/usr/bin/qemu-system-i386` from apt package `qemu-system-x86`, QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)` | Verified. Fresh `ARCH=i386` configure/build/QEMU smoke passes with `TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin` prepended to `PATH`; `timeout --foreground 20s make qemu` returns rc 124 only after success markers appear. |
+| `amd64` | `/usr/bin/qemu-system-x86_64` is present from the same package | Not verified in this task. Configure/build/QEMU smoke still need an amd64 target-toolchain path and APXH configure-script verification. |
+| `riscv64` | Source target uses `qemu-system-riscv64 -M virt` | Not verified in this task. RISC-V target tools, QEMU availability, SBI/DTB path, and platform gaps remain open. |
+
+The i386 serial-smoke markers observed in the verified run were `APXH started.`, `NUX library (nux)`, userspace hello output, `SYSC0`/`SYSC6` pass messages, and `User exited with error code: 42`. Treat an rc 124 timeout as a pass only when those markers appear before the timeout; otherwise investigate it as a failed or inconclusive runtime smoke.

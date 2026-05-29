@@ -8,13 +8,16 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Historical evidence: the initial documentation pass failed `../configure ARCH=i386` in `build-docs-check` with `no acceptable C compiler found in $PATH`.
    - Current reviewed status: task-log comments `2026-05-29T19:56:57Z` and `2026-05-29T19:58:36Z` record apt installation and review of the normal host baseline (`build-essential`, `autoconf`, `automake`, `file`, plus GCC/G++, Make, and binutils dependencies). `./configure --help` passes.
    - Follow-up trigger: if this container is rebuilt or the host baseline disappears, reinstall/reverify those packages. Do not treat the old missing-host-compiler result as the current first blocker.
-2. **Stabilize the reviewed `i686-unknown-elf` target toolchain path.**
+2. **Stable `i686-unknown-elf` target toolchain path is resolved for this task workspace.**
    - Historical blocker: after host tools were installed, fresh `/tmp` `ARCH=i386` configure probes passed host compiler checks and failed at `i686-unknown-elf-gcc not found`.
-   - Current reviewed status: task-log comments `2026-05-29T20:15:25Z`, `2026-05-29T20:18:36Z`, and `2026-05-29T20:20:57Z` record that the README-recommended `gcc_toolchain_build` path produced `i686-unknown-elf-{gcc,ld,ar,objcopy}` under `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin`. With that directory prepended to `PATH`, fresh i386 configure and `make -j"$(nproc)"` pass and produce `example/example_qemu`; without the prefix, the target tools are still absent.
-   - Next slice: decide whether `/tmp` is acceptable for ongoing work or promote the built toolchain to a stable container/project path, then document the final `PATH` policy.
-3. **Provide QEMU for the current i386 runtime smoke blocker.**
-   - Evidence: the reviewed target-toolchain slice says `make qemu` failed at `qemu-system-i386: No such file or directory`; `qemu-system-x86_64` is also absent.
-   - Next slice: install/provide the minimal QEMU x86 package, then run the example `make qemu` or a timeout-based smoke wrapper from a fresh `/tmp` build using the reviewed target-toolchain `PATH`.
+   - Provenance: task-log comments `2026-05-29T20:15:25Z`, `2026-05-29T20:18:36Z`, and `2026-05-29T20:20:57Z` record that the README-recommended `gcc_toolchain_build` source at commit `eecef0929616a96517a83dab988a8429ad8c62d8` produced `i686-unknown-elf-{gcc,ld,ar,objcopy}` under `/tmp/the-nux-i386-target-toolchain-gcc_toolchain_build/install/bin`. With that temporary path prepended to `PATH`, fresh i386 configure/build passed.
+   - Current reviewed status: that reviewed install tree was copied into stable task path `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf`; the documented `TOOLBIN` is `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin`. Stable `TOOLBIN` verification found GCC 14.2.0 and Binutils 2.43.1 `ld`/`ar`/`objcopy`.
+   - Follow-up trigger: if the task-workspace toolchain is removed, corrupted, or needs to be recreated outside this instance, rebuild or recopy from the documented `gcc_toolchain_build` commit. Do not commit the toolchain into this repository.
+3. **i386 QEMU runtime smoke blocker is resolved in this container.**
+   - Historical blocker: the reviewed target-toolchain slice said `make qemu` failed at `qemu-system-i386: No such file or directory`; `qemu-system-x86_64` was also absent.
+   - Current reviewed status: apt package `qemu-system-x86` is installed with `--no-install-recommends`, providing `/usr/bin/qemu-system-i386` and `/usr/bin/qemu-system-x86_64` at QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
+   - Verification: fresh `/tmp/the-nux-i386-qemu-stable-path-build-i386` with stable `TOOLBIN` prepended to `PATH` passed `ARCH=i386` configure, `make -j"$(nproc)"`, and a bounded `timeout --foreground 20s make qemu`. The command returned rc 124 only after serial success markers appeared: `APXH started.`, `NUX library (nux)`, userspace hello, `SYSC0`/`SYSC6` passed, and `User exited with error code: 42`.
+   - Follow-up trigger: add a checked-in timeout/marker smoke harness if repeatability is needed beyond manual task logs.
 4. **Initialize and verify required submodules.**
    - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; worktree `git submodule status` showed them uninitialized with leading `-`.
    - Next slice: initialize submodules in a clean worktree and rerun configure/build.
@@ -77,8 +80,8 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Evidence: task-log comment `2026-05-29T19:19:31Z` identifies `/home/glguida/the_nux/PORTING_0_EM` as a base-checkout binary/ELF artifact to preserve. A local magic-byte check in this fix job read `7f454c46` (`ELF`) and size `303904` bytes; `file(1)` was unavailable in the container.
    - Next slice: if analysis is authorized, inspect it with appropriate binary tools (`readelf`, `objdump`, or equivalent) and record metadata separately. Do not edit it, delete it, or treat it as Markdown/source documentation.
 2. **Create an automated smoke target.**
-   - Evidence: only manual `make qemu`/`make qemu_dbg` targets were found.
-   - Next slice: add a timeout-based QEMU smoke script that checks for expected serial output.
+   - Evidence: the repository still only has manual `make qemu`/`make qemu_dbg` targets, even though the task logs now prove a timeout-based i386 marker smoke can pass in this container with the stable `TOOLBIN` path.
+   - Next slice: add a timeout-based QEMU smoke script or make target that checks for expected serial output and treats rc 124 as acceptable only when success markers are present.
 3. **Add GDB/debugging helpers.**
    - Evidence: QEMU debug target exists but no GDB scripts were found.
    - Next slice: add docs or scripts for loading symbols and connecting to `:1234`.
