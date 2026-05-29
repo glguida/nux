@@ -156,7 +156,16 @@ With `PATH="$TOOLBIN:$PATH"`, `i686-unknown-elf-gcc` 14.2.0 and Binutils 2.43.1 
 
 The i386 QEMU runtime blocker is also resolved in this container. The reviewed package install requested `qemu-system-x86` with `--no-install-recommends`, which provides both `/usr/bin/qemu-system-i386` and `/usr/bin/qemu-system-x86_64`; both report QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
 
-Current reviewed i386 smoke flow:
+Checked-in i386 smoke harness:
+
+```sh
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ./tools/qemu-smoke-i386.sh
+```
+
+The harness runs from a source checkout/worktree, defaults to a fresh out-of-tree build directory under `/tmp`, accepts `BUILD` or `NUX_BUILD` to choose another out-of-tree build, writes configure/make/QEMU logs inside the build directory, and leaves source/submodule cleanup decisions to the operator. It may also be used without `TOOLBIN` if the `i686-unknown-elf-*` tools are already on `PATH`.
+
+Manual equivalent reviewed i386 smoke flow:
 
 ```sh
 TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin

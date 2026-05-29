@@ -20,21 +20,14 @@ No repository GDB script was found during this pass. A typical manual flow after
 
 ## Timeout-based i386 smoke workflow
 
-The current container has a reviewed i386 smoke workflow. Use the stable task-workspace target toolchain path rather than the older `/tmp` toolchain install:
+The current container has a reviewed i386 smoke workflow and a checked-in harness for repeating it. From a source checkout/worktree, use the stable task-workspace target toolchain path rather than the older `/tmp` toolchain install:
 
 ```sh
-TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
-BUILD=/tmp/the-nux-i386-qemu-stable-path-build-i386
-rm -rf "$BUILD"
-mkdir -p "$BUILD"
-cd "$BUILD"
-PATH="$TOOLBIN:$PATH" /home/glguida/the_nux/configure ARCH=i386
-PATH="$TOOLBIN:$PATH" make -j"$(nproc)"
-cd example
-PATH="$TOOLBIN:$PATH" timeout --foreground 20s make qemu
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ./tools/qemu-smoke-i386.sh
 ```
 
-A timeout rc 124 is expected for this smoke because the guest idles after userspace exits. Count it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_VALIDRANGE test passed.`, `KVA_ALLOC_FREE test passed.`, and `User exited with error code: 42`.
+`tools/qemu-smoke-i386.sh` creates an out-of-tree build under `/tmp` by default; set `BUILD` or `NUX_BUILD` to choose another out-of-tree directory and `TIMEOUT` to override the default 20 second QEMU timeout. It records configure, make, and QEMU serial logs in the build directory. A timeout rc 124 is expected because the guest idles after userspace exits, but the harness counts it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_VALIDRANGE test passed.`, `KVA_ALLOC_FREE test passed.`, and `User exited with error code: 42`.
 
 ## Logging paths
 
@@ -69,7 +62,7 @@ Kernel code uses `printf`, `info`, `warn`, `error`, `fatal`, and `debug` macros 
 
 ## Known debugging gaps
 
-- No automated smoke-test harness or CI script was found.
+- The checked-in i386 smoke harness is not wired into CI and does not cover amd64/riscv64.
 - No checked-in GDB command files were found.
 - RISC-V panic output is less detailed than x86 panic output.
 - `libnux/framebuffer.c` contains explicit TODO/XXX comments about RGB masks and bounds checks, so framebuffer debugging output may be fragile.

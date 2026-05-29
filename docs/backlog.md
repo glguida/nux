@@ -17,7 +17,8 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Historical blocker: the reviewed target-toolchain slice said `make qemu` failed at `qemu-system-i386: No such file or directory`; `qemu-system-x86_64` was also absent.
    - Current reviewed status: apt package `qemu-system-x86` is installed with `--no-install-recommends`, providing `/usr/bin/qemu-system-i386` and `/usr/bin/qemu-system-x86_64` at QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
    - Verification: fresh `/tmp/the-nux-i386-qemu-stable-path-build-i386` with stable `TOOLBIN` prepended to `PATH` passed `ARCH=i386` configure, `make -j"$(nproc)"`, and a bounded `timeout --foreground 20s make qemu`. The command returned rc 124 only after serial success markers appeared: `APXH started.`, `NUX library (nux)`, userspace hello, `SYSC0`/`SYSC6` passed, and `User exited with error code: 42`. Later source fixes repeated the same flow and added regression markers: the `uctxt_seta2()` fix added `UCTXT_SETA2 test passed.` plus `UCTXT_SETA2 user test passed.`, the `uaddr_validrange()` fix added `UADDR_VALIDRANGE test passed.`, and the KVA metadata-removal fix added `KVA_ALLOC_FREE test passed.`.
-   - Follow-up trigger: add a checked-in timeout/marker smoke harness if repeatability is needed beyond manual task logs.
+   - Current harness: `tools/qemu-smoke-i386.sh` now runs the reviewed out-of-tree i386 configure/build/QEMU flow with a configurable `TOOLBIN`, captures serial output, and treats timeout rc 124 as a pass only after the required APXH/NUX/userspace/regression markers appear.
+   - Follow-up trigger: integrate the checked-in harness into CI or extend it for other architectures after their target-toolchain/QEMU paths are reviewed.
 4. **Submodules are initialized and verified for the i386 smoke path in this task workspace.**
    - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; the `uctxt_seta2()` worktree initially showed them uninitialized with leading `-`.
    - Current i386 status: `git submodule update --init --recursive` in `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/worktree-uctxt-seta2` checked out the pinned submodule commits, after which the fresh i386 configure/build/QEMU smoke passed with the stable `TOOLBIN`.
@@ -50,16 +51,16 @@ This backlog is source-inspected only unless a verification result, task-log ite
 3. **`uctxt_seta2()` setter bug is fixed.**
    - Historical evidence: `libnux/uctxt.c` called `hal_frame_seta1(f, a2)` inside `uctxt_seta2()`.
    - Current status: `uctxt_seta2()` now calls `hal_frame_seta2()`. The example kernel/user smoke includes syscall `7`, where the kernel uses `uctxt_seta2()` to write a known magic value into the resumed user frame's third argument register and userspace verifies it after the syscall returns.
-   - Follow-up trigger: keep the `UCTXT_SETA2` serial markers in the i386 QEMU smoke output or replace them with a checked-in automated smoke harness if one is added later.
+   - Follow-up trigger: keep the `UCTXT_SETA2` serial markers in the i386 QEMU smoke output and in `tools/qemu-smoke-i386.sh` unless the regression is replaced by a stronger checked-in test.
 4. **User-address range validation is fixed.**
    - Historical evidence: `libnux/uaddr.c` had unused malformed macros and `uaddr_validrange()` validated `a + size` rather than the last accessed byte; overflow/zero-length behavior was undocumented.
    - Current status: the stale macros are removed. `uaddr_validrange(a, size)` treats user ranges as half-open intervals `[a, a + size)` contained in `[hal_virtmem_userbase(), hal_virtmem_userbase() + hal_virtmem_usersize())`; for non-empty ranges it checks the last accessed byte without overflowing, so a range ending exactly at the user-region end is valid and a one-past-end non-empty range is invalid. Empty ranges are accepted for no-op user copies at any address from the user base through one-past-user-end inclusive. `uaddr_valid(a)` remains the single-address `[base, end)` check.
    - Verification: the example kernel i386 smoke now asserts first-byte validity, full `[base, end)` validity, one-past-end non-empty rejection, oversized/overflow rejection, and zero-length no-op acceptance, then prints `UADDR_VALIDRANGE test passed.`.
-   - Follow-up trigger: replace the serial-marker regression with a checked-in automated smoke harness if/when the broader QEMU smoke path is scripted.
+   - Follow-up trigger: keep the `UADDR_VALIDRANGE` marker covered by `tools/qemu-smoke-i386.sh` unless the regression is replaced by a stronger checked-in test.
 5. **KVA allocator metadata removal is fixed.**
    - Historical evidence: `libnux/kva.c` `vmap_insert()` allocates each `struct vme` metadata node with `kmem_alloc(0, sizeof(struct vme))`, but `vmap_remove()` removed the node from the red-black tree and then called `kmem_alloc(0, sizeof(struct vme))` again instead of releasing the removed node.
    - Current status: `vmap_remove()` now frees the removed metadata with `kmem_free(0, (vaddr_t) vme, sizeof(struct vme))` after unlinking it and decrementing `vmap_size`, preserving the existing KVA lock/tree/zone flow. The example i386 smoke repeatedly allocates and frees KVA ranges, checks that the high KMEM brk is unchanged across the balanced KVA churn, and prints `KVA_ALLOC_FREE test passed.`.
-   - Follow-up trigger: replace the serial-marker regression with a checked-in automated smoke harness if/when the broader QEMU smoke path is scripted.
+   - Follow-up trigger: keep the `KVA_ALLOC_FREE` marker covered by `tools/qemu-smoke-i386.sh` unless the regression is replaced by a stronger checked-in test.
 6. **Complete or document RISC-V SMP support.**
    - Evidence: `libhal_riscv/riscv.c` has TODOs in `hal_pcpu_init()` and `hal_pcpu_startaddr()` and returns `PADDR_INVALID` for secondary start.
    - Next slice: decide whether SBI HSM or another start mechanism should be used.
@@ -92,9 +93,9 @@ This backlog is source-inspected only unless a verification result, task-log ite
 1. **Preserve and analyze `PORTING_0_EM` as a binary artifact, not documentation.**
    - Evidence: task-log comment `2026-05-29T19:19:31Z` identifies `/home/glguida/the_nux/PORTING_0_EM` as a base-checkout binary/ELF artifact to preserve. A local magic-byte check in this fix job read `7f454c46` (`ELF`) and size `303904` bytes; `file(1)` was unavailable in the container.
    - Next slice: if analysis is authorized, inspect it with appropriate binary tools (`readelf`, `objdump`, or equivalent) and record metadata separately. Do not edit it, delete it, or treat it as Markdown/source documentation.
-2. **Create an automated smoke target.**
-   - Evidence: the repository still only has manual `make qemu`/`make qemu_dbg` targets, even though the task logs now prove a timeout-based i386 marker smoke can pass in this container with the stable `TOOLBIN` path.
-   - Next slice: add a timeout-based QEMU smoke script or make target that checks for expected serial output and treats rc 124 as acceptable only when success markers are present.
+2. **Checked-in automated i386 smoke harness is implemented.**
+   - Evidence: `tools/qemu-smoke-i386.sh` runs from a source checkout/worktree, uses an out-of-tree build directory (defaulting under `/tmp`, overridable with `BUILD` or `NUX_BUILD`), prepends `TOOLBIN` when provided, runs `configure ARCH=i386`, `make`, and bounded `make qemu`, captures QEMU serial output, and verifies the reviewed APXH/NUX/userspace/regression markers before accepting timeout rc 124.
+   - Follow-up trigger: add CI wiring, GDB/debug variants, or analogous amd64/riscv64 smoke harnesses only after those architectures have reviewed toolchain/QEMU paths.
 3. **Add GDB/debugging helpers.**
    - Evidence: QEMU debug target exists but no GDB scripts were found.
    - Next slice: add docs or scripts for loading symbols and connecting to `:1234`.
