@@ -26,9 +26,10 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Historical evidence: `apxh/configure.ac` was missing a separator between the `amd64` and `riscv64` `AS_CASE` branches; generated `apxh/configure` showed a malformed amd64 branch and had an invalid-architecture error message that omitted `riscv64`.
    - Current status: `apxh/configure.ac` and the regenerated `apxh/configure` select `multiboot` for `i386`, `multiboot efi` for `amd64`, and `sbi efi` for `riscv64`; invalid architecture messages list `i386, amd64, riscv64`.
    - Follow-up trigger: full `amd64` and `riscv64` configure/build/QEMU verification still needs real target-toolchain paths; this fix only verifies APXH subdir selection with generated-script probes.
-6. **Fix `--disable-werror` handling in configure inputs.**
-   - Evidence: top-level, APXH, and example `configure.ac` define `AC_ARG_ENABLE([werror])` but test `enable_relax` rather than `enable_werror`.
-   - Next slice: correct the variable, regenerate configure scripts, and test `--disable-werror`.
+6. **`--disable-werror` handling in configure inputs is fixed.**
+   - Historical evidence: top-level, APXH, and example `configure.ac` defined `AC_ARG_ENABLE([werror])` but tested `enable_relax` rather than `enable_werror`.
+   - Current status: top-level, APXH, and example configure inputs now test `enable_werror`; the generated `configure` scripts were regenerated and verified so default configure keeps `-Werror` while `--disable-werror` omits it from generated build flags.
+   - Follow-up trigger: if new configure inputs are added, keep the `AC_ARG_ENABLE([werror])` variable and generated scripts in sync.
 7. **Reconcile README boot-support claims with configure behavior.**
    - Evidence: README says APXH supports EFI on i386, amd64, and riscv64. The current APXH configure selection is `multiboot` only for i386, `multiboot efi` for amd64, and `sbi efi` for riscv64.
    - Next slice: decide whether the README, configure logic, or both should change.

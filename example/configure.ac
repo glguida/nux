@@ -66,7 +66,7 @@ AS_IF([test "x$enable_opt" != "xno"],
 
 AC_ARG_ENABLE([werror],
 	AS_HELP_STRING([--disable-werror],[compile ignoring compiler warnings]))
-AS_IF([test "x$enable_relax" != "xno"],
+AS_IF([test "x$enable_werror" != "xno"],
 	[wflags='-Werror'],
 	[wflags=''])
 

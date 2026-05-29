@@ -2324,7 +2324,7 @@ then :
   enableval=$enable_werror;
 fi
 
-if test "x$enable_relax" != "xno"
+if test "x$enable_werror" != "xno"
 then :
   wflags='-Werror'
 else case e in #(

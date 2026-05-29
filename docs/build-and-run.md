@@ -56,7 +56,7 @@ Override toolchain prefixes if they differ from the defaults:
 Useful configure options from `./configure --help`:
 
 - `--disable-opt`: use `-O0 -g` rather than optimized flags.
-- `--disable-werror`: intended to disable `-Werror` (see backlog: the configure inputs currently test `enable_relax`, so this needs verification/fixing).
+- `--disable-werror`: omit `-Werror` from generated build flags. Default configure keeps `-Werror` enabled.
 - `--disable-debug`: compile without debug code/messages.
 - `--enable-plt-verbose`: enable extra platform logging.
 
