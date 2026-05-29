@@ -18,8 +18,8 @@ that defines how the kernel behaves on certain events:
 - `entry_ex` to handle user space exceptions
 - `entry_pf` to handle user space page faults
 
-See the [example kernel](https://github.com/glguida/nux/blob/main/example/kern/main.c) and
-[exmaple userspace](https://github.com/glguida/nux/blob/main/example/user/main.c).
+See the [example kernel](example/kern/main.c) and
+[example userspace](example/user/main.c).
 
 NUX also provides _libnux_, a runtime kernel support library to handle platform and memory,
 and _libec_ a basic embedded C library based on the NetBSD libc.
@@ -32,6 +32,12 @@ APXH currently supports:
 - `EFI` on i386, amd64 and riscv64
 - `multiboot` on i386 and amd64
 - `SBI` (riscv64).
+
+## Documentation
+
+The `docs/` tree contains a source-backed architecture, build/run, porting,
+hardware-support, debugging, memory, userspace, Murgia-integration, and backlog
+baseline. Start with [`docs/README.md`](docs/README.md).
 
 ## Building NUX
 
@@ -71,7 +77,7 @@ mkdir build
 cd build
 ../configure ARCH=i386
 make -j
-````
+```
 
 Now you can run the demo:
 
