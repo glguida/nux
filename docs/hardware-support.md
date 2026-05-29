@@ -23,6 +23,7 @@ Current implemented areas:
 Known gaps:
 
 - x2APIC, LSAPIC, IOSAPIC entries are explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`).
+- No tracked ACPI MCFG/PCIe discovery, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, or DMA-remapping API was found in this task's source/doc search. The Murgia/MH IOMMU requirement is a future substrate gap, not current NUX hardware support.
 - x86 `hal_useraccess_start/end` have TODO placeholders for SMEP handling (`libhal_x86/x86.c`).
 - i386 TLS setup is explicitly ignored in `hal_frame_settls` (`libhal_x86/i386/sys_entry.c`).
 - EFI support still needs full architecture-specific configure/build/runtime verification. i386 EFI source/settings are present but not selected by APXH configure; non-i386 target-toolchain paths and runtime smoke tests remain open. APXH subdir selection is no longer blocked by the malformed generated configure case.

@@ -77,6 +77,8 @@ Evidence examples:
 
 Prefer platform-specific additions behind `include/nux/plt.h` or a new public header if kernels need to use it. For example, timer support is abstracted by `plt_tmr_*` and exported as `timer_*` from `include/nux/nux.h`/`libnux/time.c`. IRQ routing belongs in the PLT layer, not in `libnux`.
 
+For future IOMMU or PCIe work, keep the Murgia/MH transparency constraint in mind: NUX should expose substrate facts and DMA-remapping primitives for kernel/Murgia internals, but an IOMMU-present system should not require a different Murgia user-facing `hwdev`/`sys_export`/`dexport` device/export API than the no-IOMMU fallback path.
+
 ## Update examples and documentation
 
 For each new port or hardware path:

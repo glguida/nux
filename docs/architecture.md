@@ -44,7 +44,7 @@ The HAL abstracts CPU instructions, interrupt frames, page-table leaf entries, T
 
 The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and platform interrupt dispatch (`include/nux/plt.h`).
 
-- `libplt_acpi` expects APXH to provide a `PLT_ACPI` descriptor. It scans ACPI tables, MADT, LAPIC, IOAPIC, and HPET (`libplt_acpi/plt.c`, `acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`).
+- `libplt_acpi` expects APXH to provide a `PLT_ACPI` descriptor. It scans ACPI tables, MADT, LAPIC, IOAPIC, and HPET (`libplt_acpi/plt.c`, `acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`). It does not currently expose PCIe/MCFG discovery, DMAR/IVRS IOMMU tables, or DMA-remapping primitives.
 - `libplt_sbi` expects `PLT_DTB`. It parses `/cpus`, `timebase-frequency`, and PLIC information from a DTB, implements SBI timer calls, and uses software interrupts plus `libnux` NMI emulation (`libplt_sbi/sbi.c`, `libnux/nmiemul.c`). Several SBI/PLIC paths are still TODO.
 
 ### `libnux`
@@ -79,4 +79,5 @@ The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and 
 - RISC-V platform support has explicit TODOs for secondary CPU start, platform CPU enter, external IRQs, IRQ enable/disable/type/max, and EOI (`libhal_riscv/riscv.c`, `libplt_sbi/sbi.c`).
 - x86 user-access hardening has TODO placeholders for SMEP in `libhal_x86/x86.c`.
 - Basic Murgia/MH porting has task-log roadmap dependencies for HAL root/leaf PTE abstractions and an input-frame-mutating entry-hook contract; these are not tracked-source implementations yet.
+- Murgia/MH IOMMU support has a separate transparency requirement: future NUX substrate work should expose device/IOMMU facts and DMA-remapping primitives without forcing a different Murgia user-facing device/export API on IOMMU-present systems.
 - APXH boot-path verification is still incomplete beyond the reviewed i386/multiboot path: amd64 multiboot/EFI and riscv64 SBI/EFI need real target-toolchain/runtime verification, and the RISC-V EFI platform contract remains unresolved; see [hardware support](hardware-support.md) and [backlog](backlog.md).
