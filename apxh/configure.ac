@@ -29,7 +29,7 @@ AS_CASE([${ARCH}],
 	[i386], [tool_prefix=i686-unknown-elf tool_prefix_32=i686-unknown-elf],
 	[amd64], [tool_prefix=amd64-unknown-elf tool_prefix_32=i686-unknown-elf],
 	[riscv64], [tool_prefix=riscv64-unknown-elf],
-	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
+	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])
 
 AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
 if test x"${TOOLCHAIN}" != x ; then
@@ -62,8 +62,9 @@ machine=${ARCH}
 
 AS_CASE([$machine],
 	[i386], [apxh_subdirs=multiboot],
-	[amd64], [apxh_subdirs="multiboot efi"]
-	[riscv64], [apxh_subdirs="sbi efi"])
+	[amd64], [apxh_subdirs="multiboot efi"],
+	[riscv64], [apxh_subdirs="sbi efi"],
+	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])
 
 
 AC_ARG_ENABLE([opt],

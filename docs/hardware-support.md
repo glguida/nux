@@ -7,8 +7,8 @@ This matrix distinguishes configured support, source-level support, and gaps fou
 | Architecture | Configure support | HAL | Platform library | APXH paths in source/config | Status notes |
 | --- | --- | --- | --- | --- | --- |
 | `i386` | Yes (`configure.ac`) | `libhal_x86` i386 | `libplt_acpi` | `apxh/multiboot`; EFI source has i386 settings in `apxh/efi/Makefile.in` but `apxh/configure.ac` selects only `multiboot` for i386 | Multiboot + ACPI is the configured path. README's EFI-on-i386 claim needs reconciliation with configure. |
-| `amd64` | Yes (`configure.ac`) | `libhal_x86` amd64 | `libplt_acpi` | Intended `multiboot efi` in `apxh/configure.ac`; generated `apxh/configure` currently appears malformed around the amd64/riscv64 case | Source has amd64 HAL, multiboot, EFI, ACPI, LAPIC/IOAPIC/HPET support. Build script needs repair/verification. |
-| `riscv64` | Yes (`configure.ac`) | `libhal_riscv` | `libplt_sbi` | `apxh/sbi`; EFI RISC-V code exists in `apxh/efi/apxhefi/efi_md.c` | SBI/DTB is the coherent configured path. RISC-V EFI is source-present but platform-descriptor compatibility is unverified. |
+| `amd64` | Yes (`configure.ac`) | `libhal_x86` amd64 | `libplt_acpi` | `apxh/configure` selects `multiboot efi` | Source has amd64 HAL, multiboot, EFI, ACPI, LAPIC/IOAPIC/HPET support. APXH subdir selection is script-verified; full amd64 build/runtime verification still needs an amd64 target-toolchain path. |
+| `riscv64` | Yes (`configure.ac`) | `libhal_riscv` | `libplt_sbi` | `apxh/configure` selects `sbi efi`; EFI RISC-V code exists in `apxh/efi/apxhefi/efi_md.c` | SBI/DTB is the coherent configured path. APXH subdir selection is script-verified; RISC-V EFI platform-descriptor compatibility and full build/runtime remain unverified. |
 
 ## x86 / ACPI support
 
@@ -25,7 +25,7 @@ Known gaps:
 - x2APIC, LSAPIC, IOSAPIC entries are explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`).
 - x86 `hal_useraccess_start/end` have TODO placeholders for SMEP handling (`libhal_x86/x86.c`).
 - i386 TLS setup is explicitly ignored in `hal_frame_settls` (`libhal_x86/i386/sys_entry.c`).
-- EFI support needs configure/build verification, especially for i386 and the malformed generated APXH configure case.
+- EFI support still needs full architecture-specific configure/build/runtime verification, especially i386 EFI and non-i386 target-toolchain paths; APXH subdir selection is no longer blocked by the malformed generated configure case.
 
 ## RISC-V / SBI support
 
@@ -64,7 +64,7 @@ Current reviewed container status:
 | Architecture | QEMU status in this container | Verification status |
 | --- | --- | --- |
 | `i386` | `/usr/bin/qemu-system-i386` from apt package `qemu-system-x86`, QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)` | Verified. Fresh `ARCH=i386` configure/build/QEMU smoke passes with `TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin` prepended to `PATH`; `timeout --foreground 20s make qemu` returns rc 124 only after success markers appear. |
-| `amd64` | `/usr/bin/qemu-system-x86_64` is present from the same package | Not verified in this task. Configure/build/QEMU smoke still need an amd64 target-toolchain path and APXH configure-script verification. |
+| `amd64` | `/usr/bin/qemu-system-x86_64` is present from the same package | Not verified in this task. Configure/build/QEMU smoke still need an amd64 target-toolchain path; APXH subdir selection itself has been script-verified. |
 | `riscv64` | Source target uses `qemu-system-riscv64 -M virt` | Not verified in this task. RISC-V target tools, QEMU availability, SBI/DTB path, and platform gaps remain open. |
 
 The i386 serial-smoke markers observed in the verified run were `APXH started.`, `NUX library (nux)`, userspace hello output, `SYSC0`/`SYSC6` pass messages, the `UCTXT_SETA2` kernel/user regression markers, and `User exited with error code: 42`. Treat an rc 124 timeout as a pass only when those markers appear before the timeout; otherwise investigate it as a failed or inconclusive runtime smoke.

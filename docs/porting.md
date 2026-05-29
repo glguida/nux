@@ -55,7 +55,7 @@ Files to update:
 - Common loader code only if a new APXH program-header behavior is needed (`apxh/src/main.c`, `apxh/src/elf.c`, `apxh/src/project.h`).
 - Machine-dependent boot code, following `apxh/multiboot`, `apxh/efi`, or `apxh/sbi`.
 
-Important current pitfall: `apxh/configure.ac` and the generated `apxh/configure` need cleanup before relying on all APXH subdir selections. See `docs/backlog.md`.
+Current APXH selection contract: the regenerated `apxh/configure` selects `multiboot` for `i386`, `multiboot efi` for `amd64`, and `sbi efi` for `riscv64`. Full non-i386 build/runtime validation still needs real target-toolchain paths; see `docs/backlog.md`.
 
 ## Add or extend a platform library
 

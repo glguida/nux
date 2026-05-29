@@ -22,14 +22,15 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; the `uctxt_seta2()` worktree initially showed them uninitialized with leading `-`.
    - Current i386 status: `git submodule update --init --recursive` in `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/worktree-uctxt-seta2` checked out the pinned submodule commits, after which the fresh i386 configure/build/QEMU smoke passed with the stable `TOOLBIN`.
    - Follow-up trigger: verify amd64/riscv64 submodule-dependent paths separately. The current build invokes `contrib/binutils` configure/make in the source submodule, so dedicated verification worktrees may need cleanup of generated files after builds; do not clean the dirty base checkout without authorization.
-5. **Fix APXH configure architecture selection.**
-   - Evidence: `apxh/configure.ac` is missing a separator between the `amd64` and `riscv64` `AS_CASE` branches; generated `apxh/configure` shows an obviously malformed amd64 branch and has an error message that omits `riscv64`.
-   - Next slice: fix `apxh/configure.ac`, run `./bootstrap.sh`, and verify `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64` APXH subdir selection.
+5. **APXH configure architecture selection is fixed.**
+   - Historical evidence: `apxh/configure.ac` was missing a separator between the `amd64` and `riscv64` `AS_CASE` branches; generated `apxh/configure` showed a malformed amd64 branch and had an invalid-architecture error message that omitted `riscv64`.
+   - Current status: `apxh/configure.ac` and the regenerated `apxh/configure` select `multiboot` for `i386`, `multiboot efi` for `amd64`, and `sbi efi` for `riscv64`; invalid architecture messages list `i386, amd64, riscv64`.
+   - Follow-up trigger: full `amd64` and `riscv64` configure/build/QEMU verification still needs real target-toolchain paths; this fix only verifies APXH subdir selection with generated-script probes.
 6. **Fix `--disable-werror` handling in configure inputs.**
    - Evidence: top-level, APXH, and example `configure.ac` define `AC_ARG_ENABLE([werror])` but test `enable_relax` rather than `enable_werror`.
    - Next slice: correct the variable, regenerate configure scripts, and test `--disable-werror`.
 7. **Reconcile README boot-support claims with configure behavior.**
-   - Evidence: README says APXH supports EFI on i386, amd64, and riscv64. `apxh/configure.ac` currently selects only `multiboot` for i386, intended `multiboot efi` for amd64, and `sbi efi` for riscv64.
+   - Evidence: README says APXH supports EFI on i386, amd64, and riscv64. The current APXH configure selection is `multiboot` only for i386, `multiboot efi` for amd64, and `sbi efi` for riscv64.
    - Next slice: decide whether the README, configure logic, or both should change.
 
 ## P1: correctness and runtime capability gaps

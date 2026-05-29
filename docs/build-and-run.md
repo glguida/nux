@@ -97,13 +97,13 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### amd64
 
 - Top-level `configure.ac` selects `libhal_x86` + `libplt_acpi`.
-- APXH is intended to include multiboot and EFI for `amd64`; however the generated `apxh/configure` currently contains a malformed `case` branch for `amd64`/`riscv64`, so this needs repair before treating the generated script as authoritative.
+- APXH `configure` selects `multiboot efi` for `amd64`; this subdir selection has been script-verified with fake target-tool stubs, but full amd64 configure/build/QEMU verification still needs a real amd64 target-toolchain path.
 - `libhal_x86/amd64/exe.ld` uses the high-half base `0xffff800000000000`, 512 GiB physmap, 512 GiB KVA, 512 GiB KMEM, 256 MiB PFN cache, and 64 MiB framebuffer mapping.
 
 ### riscv64
 
 - Top-level `configure.ac` selects `libhal_riscv` + `libplt_sbi`.
-- APXH source supports SBI/DTB (`apxh/sbi/*`) and has EFI RISC-V code in `apxh/efi/apxhefi/efi_md.c`.
+- APXH `configure` selects `sbi efi` for `riscv64`; this subdir selection has been script-verified with fake target-tool stubs, but full riscv64 configure/build/QEMU verification still needs real RISC-V target tools and QEMU availability.
 - `libhal_riscv/exe.ld` uses the same high-half base, 512 GiB physmap/KVA/KMEM, 256 MiB PFN cache, and 32 MiB framebuffer mapping.
 - Treat RISC-V EFI as unverified: APXH EFI records `PLT_ACPI`, while `libplt_sbi` requires `PLT_DTB` (`apxh/efi/apxhefi/efi_md.c`, `libplt_sbi/sbi.c`).
 
