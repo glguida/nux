@@ -20,84 +20,6 @@ static paddr_t pa_root_table;
 static paddr_t pa_apic_table;
 static paddr_t pa_hpet_table;
 
-struct acpi_platform_facts
-{
-  paddr_t rsdp;
-  paddr_t root_table;
-  const char *root_kind;
-  uint8_t revision;
-  unsigned root_entries;
-  bool apic_present;
-  bool hpet_present;
-  paddr_t apic_table;
-  paddr_t hpet_table;
-  paddr_t lapic_base;
-  unsigned lapic_count;
-  unsigned ioapic_count;
-  unsigned int_override_count;
-  unsigned lapic_nmi_count;
-  unsigned ignored_lsapic_count;
-  unsigned ignored_x2apic_count;
-  unsigned ignored_iosapic_count;
-  unsigned ignored_x2apic_nmi_count;
-};
-
-static struct acpi_platform_facts acpi_facts;
-
-static const char *
-acpi_fact_root_kind (void)
-{
-  return acpi_facts.root_kind != NULL ? acpi_facts.root_kind : "none";
-}
-
-static void
-acpi_log_table_facts (void)
-{
-  info ("NUX ACPI FACTS: rsdp=%" PRIx64 " revision=%u root=%s"
-	" root_pa=%" PRIx64 " root_entries=%u apic=%u apic_pa=%" PRIx64
-	" hpet=%u hpet_pa=%" PRIx64,
-	(uint64_t) acpi_facts.rsdp, acpi_facts.revision,
-	acpi_fact_root_kind (), (uint64_t) acpi_facts.root_table,
-	acpi_facts.root_entries,
-	acpi_facts.apic_present ? 1 : 0, (uint64_t) acpi_facts.apic_table,
-	acpi_facts.hpet_present ? 1 : 0, (uint64_t) acpi_facts.hpet_table);
-}
-
-static void
-acpi_log_madt_facts (bool loaded)
-{
-  info ("NUX ACPI MADT FACTS: table=%u loaded=%u lapic_count=%u"
-	" ioapic_count=%u lapic_base=%" PRIx64
-	" int_override_count=%u lapic_nmi_count=%u"
-	" ignored_lsapic_count=%u ignored_x2apic_count=%u"
-	" ignored_iosapic_count=%u ignored_x2apic_nmi_count=%u",
-	acpi_facts.apic_present ? 1 : 0, loaded ? 1 : 0,
-	acpi_facts.lapic_count, acpi_facts.ioapic_count,
-	(uint64_t) acpi_facts.lapic_base,
-	acpi_facts.int_override_count, acpi_facts.lapic_nmi_count,
-	acpi_facts.ignored_lsapic_count, acpi_facts.ignored_x2apic_count,
-	acpi_facts.ignored_iosapic_count,
-	acpi_facts.ignored_x2apic_nmi_count);
-}
-
-void
-acpi_gsi_facts (unsigned gsi_count)
-{
-  if (gsi_count == 0)
-    info ("NUX ACPI GSI FACTS: count=0 range=none");
-  else
-    info ("NUX ACPI GSI FACTS: count=%u range=0-%u", gsi_count,
-	  gsi_count - 1);
-}
-
-static void
-acpi_log_hpet_facts (bool init_ok)
-{
-  info ("NUX ACPI HPET FACTS: table=%u hpet_pa=%" PRIx64 " init=%u",
-	acpi_facts.hpet_present ? 1 : 0, (uint64_t) acpi_facts.hpet_table,
-	init_ok ? 1 : 0);
-}
-
 static void *
 load_table (paddr_t pa)
 {
@@ -158,30 +80,21 @@ acpi_init (paddr_t root)
   struct acpi_rsdp_thdr *rsdp;
   struct acpi_thdr *roottable, *sdtable;
 
-  memset (&acpi_facts, 0, sizeof (acpi_facts));
-  pa_root_table = 0;
-  pa_apic_table = 0;
-  pa_hpet_table = 0;
-  acpi_facts.rsdp = root;
-
   rsdp =
     (struct acpi_rsdp_thdr *) kva_physmap (root, ACPI_MAX_TBL, HAL_PTE_P);
 
   info ("TABLE: '%8.8s' [%6.6s] rev: %d", rsdp->signature, rsdp->oemid,
 	rsdp->revision);
-  acpi_facts.revision = rsdp->revision;
 
   if (rsdp->revision == 0)
     {
       pasdt = rsdp->rsdt;
-      acpi_facts.root_kind = "RSDT";
       debug ("SDT found at addr %" PRIx64, pasdt);
       entrylen = 4;
     }
   else
     {
       pasdt = rsdp->xsdt;
-      acpi_facts.root_kind = "XSDT";
       debug ("XSDT found at addr %" PRIx64, pasdt);
       entrylen = 8;
     }
@@ -189,7 +102,6 @@ acpi_init (paddr_t root)
   kva_unmap (rsdp, ACPI_MAX_TBL);
 
   pa_root_table = pasdt;
-  acpi_facts.root_table = pasdt;
   roottable = load_table (pasdt);
 
   /* Iterate through ACPI tables. */
@@ -201,20 +113,11 @@ acpi_init (paddr_t root)
       sdtable = load_table (pasdt);
 
       print_table (sdtable);
-      acpi_facts.root_entries++;
 
       if (!memcmp (sdtable->signature, "APIC", 4))
-	{
-	  pa_apic_table = pasdt;
-	  acpi_facts.apic_present = true;
-	  acpi_facts.apic_table = pasdt;
-	}
+	pa_apic_table = pasdt;
       else if (!memcmp (sdtable->signature, "HPET", 4))
-	{
-	  pa_hpet_table = pasdt;
-	  acpi_facts.hpet_present = true;
-	  acpi_facts.hpet_table = pasdt;
-	}
+	pa_hpet_table = pasdt;
 
       unload_table (sdtable);
       length -= entrylen;
@@ -226,7 +129,6 @@ acpi_init (paddr_t root)
   debug ("RDST table at pa %" PRIx64, pa_root_table);
   debug ("APIC table at pa %" PRIx64, pa_apic_table);
   debug ("HPET table at pa %" PRIx64, pa_hpet_table);
-  acpi_log_table_facts ();
 }
 
 void
@@ -262,26 +164,14 @@ acpi_madt_scan (void)
 		}							\
 	} while (0)
 
-  acpi_facts.lapic_base = 0;
-  acpi_facts.lapic_count = 0;
-  acpi_facts.ioapic_count = 0;
-  acpi_facts.int_override_count = 0;
-  acpi_facts.lapic_nmi_count = 0;
-  acpi_facts.ignored_lsapic_count = 0;
-  acpi_facts.ignored_x2apic_count = 0;
-  acpi_facts.ignored_iosapic_count = 0;
-  acpi_facts.ignored_x2apic_nmi_count = 0;
-
   acpi_madt = load_table (pa_apic_table);
   if (acpi_madt == NULL)
     {
       error ("Could not load ACPI MADT Table.");
-      acpi_log_madt_facts (false);
       return;
     }
 
   lapic_addr = acpi_madt->lapic;
-  acpi_facts.lapic_base = lapic_addr;
 
   /* Search for APICs. Output of this stage is number of Local
      and I/O APICs and Lapic address. */
@@ -290,7 +180,6 @@ acpi_madt_scan (void)
       case ACPI_MADT_TYPE_LAPICOVERRIDE:
 	info("ACPI MADT LAPICOVR %"PRIx64, _.lavr->address);
 	lapic_addr = _.lavr->address;
-	acpi_facts.lapic_base = lapic_addr;
 	break;
       case ACPI_MADT_TYPE_LAPIC:
 	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
@@ -308,7 +197,6 @@ acpi_madt_scan (void)
       case ACPI_MADT_TYPE_LSAPIC:
 	{
 	  static int warn = 0;
-	  acpi_facts.ignored_lsapic_count++;
 	  if (!warn)
 	    {
 	      info("Warning: LSAPIC ENTRIES IGNORED");
@@ -319,7 +207,6 @@ acpi_madt_scan (void)
       case ACPI_MADT_TYPE_LX2APIC:
 	{
 	  static int warn = 0;
-	  acpi_facts.ignored_x2apic_count++;
 	  if (!warn)
 	    {
 	      info("Warning: X2APIC ENTRY IGNORED");
@@ -330,7 +217,6 @@ acpi_madt_scan (void)
       case ACPI_MADT_TYPE_IOSAPIC:
 	{
 	  static int warn = 0;
-	  acpi_facts.ignored_iosapic_count++;
 	  if (!warn)
 	    {
 	      info("Warning: IOSAPIC ENTRY IGNORED");
@@ -347,9 +233,6 @@ acpi_madt_scan (void)
       info ("Warning: NO LOCAL APICS, ACPI SAYS");
       nlapic = 1;
     }
-
-  acpi_facts.lapic_count = nlapic;
-  acpi_facts.ioapic_count = nioapic;
 
   lapic_init (lapic_addr, nlapic);
   ioapic_init (nioapic);
@@ -376,7 +259,6 @@ acpi_madt_scan (void)
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICNMI:
-	acpi_facts.lapic_nmi_count++;
 	info ("ACPI MADT LAPICNMI LINT%01d FL:%04x PROC:%02d",
 	       _.lanmi->lint, _.lanmi->flags, _.lanmi->acpiid);
 	/* Ignore IntiFlags as NMI vectors ignore
@@ -384,11 +266,9 @@ acpi_madt_scan (void)
 	lapic_add_nmi(_.lanmi->acpiid, _.lanmi->lint);
 	break;
       case ACPI_MADT_TYPE_LX2APICNMI:
-	acpi_facts.ignored_x2apic_nmi_count++;
 	warn ("LX2APICNMI ENTRY IGNORED");
 	break;
       case ACPI_MADT_TYPE_INTOVERRIDE:
-	acpi_facts.int_override_count++;
 	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
 	       _.intovr->bus, _.intovr->irq, _.intovr->gsi, _.intovr->flags);
 	flags = _.intovr->flags;
@@ -423,7 +303,6 @@ acpi_madt_scan (void)
     });
   /* *INDENT-ON* */
 
-  acpi_log_madt_facts (true);
   unload_table (acpi_madt);
 }
 
@@ -436,7 +315,6 @@ acpi_hpet_scan (void)
   if (pa_hpet_table == 0)
     {
       warn ("No HPET found");
-      acpi_log_hpet_facts (false);
       return false;
     }
 
@@ -444,14 +322,13 @@ acpi_hpet_scan (void)
   if (hpet == NULL)
     {
       error ("Error loading HPET table");
-      acpi_log_hpet_facts (false);
       return false;
     }
 
   rc = hpet_init (hpet->address.address);
 
   unload_table (hpet);
-  acpi_log_hpet_facts (rc);
+
 
   return rc;
 }

@@ -19,11 +19,10 @@ Current implemented areas:
 - amd64 4-level paging and 42-bit user UMAP by default: `libhal_x86/amd64/pae64.c`, `libhal_x86/include/nux/hal_config_amd64.h`.
 - i386 and amd64 secondary CPU bootstrap using LAPIC INIT/SIPI through `libplt_acpi/lapic.c` and HAL trampoline code in `libhal_x86/i386/i386.c`, `libhal_x86/amd64/amd64.c`.
 - ACPI table loading, MADT scan, LAPIC, IOAPIC, GSI routing, and HPET timer: `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`.
-- Deterministic x86 ACPI/platform fact markers on the serial path: `NUX ACPI PLT FACTS:`, `NUX ACPI FACTS:`, `NUX ACPI MADT FACTS:`, `NUX ACPI GSI FACTS:`, and `NUX ACPI HPET FACTS:`. These cover the consumed RSDP, selected RSDT/XSDT root, APIC/HPET table presence, MADT LAPIC/IOAPIC counts, selected LAPIC base, GSI range, ignored modern APIC entry counts, and HPET init result.
 
 Known gaps:
 
-- x2APIC, LSAPIC, IOSAPIC, and x2APIC-NMI entries are still unsupported by the ACPI scanner (`libplt_acpi/acpi.c`), though encountered counts are now logged in the `NUX ACPI MADT FACTS:` marker.
+- x2APIC, LSAPIC, IOSAPIC entries are explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`).
 - No tracked ACPI MCFG/PCIe discovery, PCI bus enumeration, MSI/MSI-X, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness was found in the current tracked source/doc search. The Murgia/MH modern-storage direction is a future substrate gap, not current NUX hardware support.
 - x86 `hal_useraccess_start/end` have TODO placeholders for SMEP handling (`libhal_x86/x86.c`).
 - i386 TLS setup is explicitly ignored in `hal_frame_settls` (`libhal_x86/i386/sys_entry.c`).
@@ -69,4 +68,4 @@ Current reviewed container status:
 | `amd64` | `/usr/bin/qemu-system-x86_64` is present from the same package | Not verified in this task. Configure/build/QEMU smoke still need an amd64 target-toolchain path; APXH subdir selection itself has been script-verified. |
 | `riscv64` | Source target uses `qemu-system-riscv64 -M virt` | Not verified in this task. RISC-V target tools, QEMU availability, SBI/DTB path, and platform gaps remain open. |
 
-The checked-in i386 smoke harness requires the serial markers `APXH started.`, the ACPI/platform fact markers `NUX ACPI PLT FACTS:`, `NUX ACPI FACTS:`, `NUX ACPI MADT FACTS:`, `NUX ACPI GSI FACTS:`, and `NUX ACPI HPET FACTS:`, `NUX library (nux)`, userspace hello output, `SYSC0`/`SYSC6` pass messages, the `UCTXT_SETA2` kernel/user regression markers, `UADDR_VALIDRANGE test passed.`, `KVA_ALLOC_FREE test passed.`, and `User exited with error code: 42`. It also rejects fatal markers such as `Fatal:` and `Fatal error`. Treat an rc 124 timeout as a pass only when the required markers appear before the timeout and fatal markers are absent; otherwise investigate it as a failed or inconclusive runtime smoke.
+The checked-in i386 smoke harness requires the serial markers `APXH started.`, `NUX library (nux)`, userspace hello output, `SYSC0`/`SYSC6` pass messages, the `UCTXT_SETA2` kernel/user regression markers, `UADDR_VALIDRANGE test passed.`, `KVA_ALLOC_FREE test passed.`, and `User exited with error code: 42`. Treat an rc 124 timeout as a pass only when those markers appear before the timeout; otherwise investigate it as a failed or inconclusive runtime smoke.

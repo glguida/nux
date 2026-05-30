@@ -163,7 +163,7 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
   ./tools/qemu-smoke-i386.sh
 ```
 
-The harness runs from a source checkout/worktree, defaults to a fresh out-of-tree build directory under `/tmp`, accepts `BUILD` or `NUX_BUILD` to choose another out-of-tree build, writes configure/make/QEMU logs inside the build directory, and leaves source/submodule cleanup decisions to the operator. It requires the ACPI/platform fact markers (`NUX ACPI PLT FACTS:`, `NUX ACPI FACTS:`, `NUX ACPI MADT FACTS:`, `NUX ACPI GSI FACTS:`, and `NUX ACPI HPET FACTS:`) in addition to the existing boot/userspace/regression markers, and rejects fatal markers such as `Fatal:` and `Fatal error`. It may also be used without `TOOLBIN` if the `i686-unknown-elf-*` tools are already on `PATH`.
+The harness runs from a source checkout/worktree, defaults to a fresh out-of-tree build directory under `/tmp`, accepts `BUILD` or `NUX_BUILD` to choose another out-of-tree build, writes configure/make/QEMU logs inside the build directory, and leaves source/submodule cleanup decisions to the operator. It may also be used without `TOOLBIN` if the `i686-unknown-elf-*` tools are already on `PATH`.
 
 Manual equivalent reviewed i386 smoke flow:
 
@@ -182,11 +182,6 @@ PATH="$TOOLBIN:$PATH" timeout --foreground 20s make qemu
 In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `make qemu` returned timeout rc 124 because the guest idled after success; treat that timeout as acceptable only when the serial log already contains the success markers:
 
 - `APXH started.`
-- `NUX ACPI PLT FACTS:`
-- `NUX ACPI FACTS:`
-- `NUX ACPI MADT FACTS:`
-- `NUX ACPI GSI FACTS:`
-- `NUX ACPI HPET FACTS:`
 - `NUX library (nux)`
 - `Hello,`
 - `Hello from userspace, NUX!`
@@ -197,8 +192,6 @@ In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `ma
 - `UADDR_VALIDRANGE test passed.`
 - `KVA_ALLOC_FREE test passed.`
 - `User exited with error code: 42`
-
-The harness also requires fatal markers such as `Fatal:` and `Fatal error` to be absent.
 
 Representative logs for the original stable-path verification are `/tmp/the-nux-i386-qemu-doc-toolchain-configure-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-make-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-i386.txt`, and `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-markers.txt`. The `uctxt_seta2()` fix repeated the flow from `/tmp/the-nux-uctxt-seta2-build-i386` after initializing submodules in its dedicated worktree; logs are `/tmp/the-nux-uctxt-seta2-configure-i386.txt`, `/tmp/the-nux-uctxt-seta2-make-i386.txt`, `/tmp/the-nux-uctxt-seta2-qemu-i386.txt`, and `/tmp/the-nux-uctxt-seta2-qemu-markers.txt`. The `uaddr_validrange()` fix repeated the same smoke path from `/tmp/the-nux-uaddr-validrange-build-i386`; logs are `/tmp/the-nux-uaddr-validrange-configure-i386.txt`, `/tmp/the-nux-uaddr-validrange-make-i386.txt`, `/tmp/the-nux-uaddr-validrange-qemu-i386.txt`, and `/tmp/the-nux-uaddr-validrange-qemu-markers.txt`. The KVA metadata-removal fix repeated it from `/tmp/the-nux-kva-vmap-free-build-i386`; logs are `/tmp/the-nux-kva-vmap-free-configure-i386.txt`, `/tmp/the-nux-kva-vmap-free-make-i386.txt`, `/tmp/the-nux-kva-vmap-free-qemu-i386.txt`, and `/tmp/the-nux-kva-vmap-free-qemu-markers.txt`.
 
