@@ -82,11 +82,17 @@ This backlog is source-inspected only unless a verification result, task-log ite
 12. **ACPI/x86 hardware expansion.**
     - Evidence: `libplt_acpi/acpi.c` ignores LSAPIC, x2APIC, IOSAPIC, and LX2APICNMI entries.
     - Next slice: prioritize x2APIC if modern hardware support is a near-term goal.
-13. **Add ACPI/PCIe/IOMMU discovery and DMA-remapping substrate.**
-    - Evidence: task-log comment `2026-05-29T21:51:15Z` records the Murgia/MH design constraint that IOMMU support should stay transparent beneath the existing `hwdev`/`sys_export`/`dexport` device/export semantics.
-    - Current behavior: tracked x86 platform code scans ACPI RSDP/RSDT/XSDT for MADT and HPET, then initializes LAPIC, IOAPIC, and HPET support. A precise source/doc search for this requirement found no current MCFG/PCIe discovery, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, or DMA-remapping map/unmap API.
+13. **Add Murgia modern-hardware substrate in bounded slices.**
+    - Evidence: task-log comment `2026-05-29T21:51:15Z` records the Murgia/MH design constraint that IOMMU support should stay transparent beneath the existing `hwdev`/`sys_export`/`dexport` device/export semantics. The source-backed inventory in `docs/murgia-substrate-roadmap.md` records current NUX capabilities and gaps for bootstrap, ACPI, PCIe, IRQ, IOMMU, storage, filesystem, and harness work.
+    - Current behavior: tracked x86 platform code scans ACPI RSDP/RSDT/XSDT for MADT and HPET, then initializes LAPIC, IOAPIC, and HPET support. Public NUX primitives already include PFN/KVA/KMAP/UMAP and `kva_physmap()` for CPU-side physical/MMIO mappings. A source/doc search found no current PCI bus enumeration, ACPI MCFG/PCIe ECAM discovery, MSI/MSI-X support, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping map/unmap API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness.
     - Design constraint: if an IOMMU is present, NUX/Murgia internals should route DMA through IOMMU-backed mappings while preserving the same user-facing device/export ABI; if absent, the no-IOMMU fallback should remain behind that same ABI.
-    - Next slice: inspect ACPI MCFG, DMAR, and IVRS requirements and draft a NUX PLT/HAL substrate for device/IOMMU facts plus DMA-remapping primitives before changing Murgia-facing APIs.
+    - Priority order:
+      1. Make existing ACPI/platform facts explicit and testable: RSDP/RSDT/XSDT selection, APIC and HPET presence, GSI count/type, and ignored modern APIC entries.
+      2. Expose PCIe MCFG/ECAM facts and safe config-space access without implementing AHCI policy.
+      3. Expose IRQ routing/controller facts needed by Murgia; treat MSI/MSI-X as a focused follow-up once PCI capability access exists.
+      4. Add IOMMU discovery facts for DMAR/IVRS, then DMA-remap primitives behind Murgia's stable ABI.
+      5. Preserve i386 QEMU harness coverage; add amd64/riscv64 and later disk-image harnesses only as bounded tasks after the substrate pieces they exercise exist.
+    - Next slice: implement the first ACPI/platform-facts step and test it; do not begin AHCI/filesystem or Murgia ABI work from this item.
 
 ## P2: usability, tests, and polish
 
@@ -103,7 +109,7 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Evidence: `libnux_user` wraps syscalls, but syscall numbers are example-local (`4096` putchar, `4097` exit in `example/kern/main.c`/`example/user/main.c`).
    - Next slice: either publish a minimal NUX syscall convention or explicitly state that kernels own their syscall ABI.
 5. **Keep Murgia requirements traceable and triaged.**
-   - Evidence: `docs/murgia-integration.md` records task-log-backed `MURGIA-MH-001`, the `2026-05-29T19:53:34Z` Murgia handoff rows for the `entry_sysc` arity contract, x86 PFN-0/MMIO-region behavior, and `UIOMAP`/`IOUNMAP` errno semantics, plus `MURGIA-IOMMU-006` from the `2026-05-29T21:51:15Z` IOMMU transparency constraint.
+   - Evidence: `docs/murgia-integration.md` records task-log-backed `MURGIA-MH-001`, the `2026-05-29T19:53:34Z` Murgia handoff rows for the `entry_sysc` arity contract, x86 PFN-0/MMIO-region behavior, and `UIOMAP`/`IOUNMAP` errno semantics, plus `MURGIA-IOMMU-006` from the `2026-05-29T21:51:15Z` IOMMU transparency constraint and `MURGIA-SUBSTRATE-007` from `docs/murgia-substrate-roadmap.md`.
    - Next slice: for confirmed NUX contracts, add compile/build checks or source comments when useful; for Murgia-side dependency candidates, wait for concrete NUX acceptance criteria before changing APIs.
 6. **Clean README and install docs.**
    - Evidence: README has minor typos and a malformed closing fence in the build snippet; `install.sh` contains only a TODO comment.
