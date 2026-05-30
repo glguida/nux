@@ -11,7 +11,10 @@ EC_MACHINE=@MACHINE@
 endif
 
 CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing
-LDFLAGS+= -nostdlib
+# Freestanding NUX images are linked at fixed addresses by linker scripts or
+# crt0 code; host-target GCCs may default to PIE and reject absolute startup
+# relocations unless PIE is disabled explicitly.
+LDFLAGS+= -nostdlib -no-pie
 CPPFLAGS+= -D_EC_SOURCE -I@LIBEC_SRCDIR@
 ASFLAGS+= -D_ASSEMBLER
 
