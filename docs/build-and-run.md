@@ -23,6 +23,49 @@ The build is not self-contained. The tracked files show these requirements:
 
 The README points to `gcc_toolchain_build` as the intended way to create the cross toolchains.
 
+## Preflight without building
+
+Use `tools/build-preflight.sh` from a checkout/worktree to repeat the
+architecture readiness checks without running configure, make, submodule update,
+or QEMU. The helper follows the same default target prefixes as `configure.ac`
+and `apxh/configure.ac`, the same QEMU binary mapping as `example/Makefile.in`,
+and reports checked-in submodule initialization status from git. It exits 0 only
+when the selected target tools, runtime-smoke QEMU binary, and submodules are all
+ready; a nonzero result is useful blocker evidence for missing tools, missing
+QEMU, or uninitialized submodules.
+
+Repeat the reviewed i386 prerequisite check with the stable task-workspace
+`TOOLBIN`, then keep using the checked-in QEMU smoke harness for the actual
+runtime smoke:
+
+```sh
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ARCH=i386 ./tools/build-preflight.sh
+
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ./tools/qemu-smoke-i386.sh
+```
+
+For amd64, the default check records the current missing default target prefix;
+the override check repeats the configure-capable prefix combination that has
+been verified in this container. This is still only preflight/configure evidence,
+not a full build or QEMU run:
+
+```sh
+ARCH=amd64 ./tools/build-preflight.sh
+
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf \
+  ./tools/build-preflight.sh
+```
+
+For riscv64, the same helper keeps the missing target-toolchain and missing
+`qemu-system-riscv64` blockers explicit:
+
+```sh
+ARCH=riscv64 ./tools/build-preflight.sh
+```
+
 ## Regenerating configure scripts
 
 Only needed after editing `configure.ac` or M4 macros:

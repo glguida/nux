@@ -71,7 +71,11 @@ cd ..
 
 ### 2. Compile NUX
 
-Building NUX is as simple as using `configure` and `make`.
+Building NUX is as simple as using `configure` and `make`. To check the
+selected architecture's target tools, QEMU binary, and submodule readiness
+without configuring, building, updating submodules, or launching QEMU, run
+`tools/build-preflight.sh` first; see [docs/build-and-run.md](docs/build-and-run.md)
+for i386, amd64, and riscv64 examples.
 
 ```
 git clone https://github.com/glguida/nux
