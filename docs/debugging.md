@@ -18,9 +18,9 @@ make qemu_dbg
 
 No repository GDB script was found during this pass. A typical manual flow after `make qemu_dbg` is to start the matching target GDB, connect to `:1234`, load symbols for the built kernel, set breakpoints, then continue.
 
-## Timeout-based i386 smoke workflow
+## Timeout-based smoke workflows
 
-The current container has a reviewed i386 smoke workflow and a checked-in harness for repeating it. From a source checkout/worktree, use the stable task-workspace target toolchain path rather than the older `/tmp` toolchain install:
+The current reviewed i386 smoke workflow has a checked-in harness for repeating it. From a source checkout/worktree, use the stable task-workspace target toolchain path rather than the older `/tmp` toolchain install:
 
 ```sh
 TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
@@ -28,6 +28,15 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
 ```
 
 `tools/qemu-smoke-i386.sh` creates an out-of-tree build under `/tmp` by default; set `BUILD` or `NUX_BUILD` to choose another out-of-tree directory and `TIMEOUT` to override the default 20 second QEMU timeout. It records configure, make, and QEMU serial logs in the build directory. A timeout rc 124 is expected because the guest idles after userspace exits, but the harness counts it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_VALIDRANGE test passed.`, `KVA_ALLOC_FREE test passed.`, and `User exited with error code: 42`.
+
+The checked-in amd64 harness uses the standardized local override path. It defaults to `TOOLCHAIN=x86_64-linux-gnu` and `TOOLCHAIN32=i686-unknown-elf`, so the runner must provide host-prefixed x86_64 tools, `qemu-system-x86_64`, `make`, and the stable i386 `TOOLBIN`:
+
+```sh
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ./tools/qemu-smoke-amd64.sh
+```
+
+`tools/qemu-smoke-amd64.sh` uses the same out-of-tree build, log, timeout, `BUILD`/`NUX_BUILD`, `TIMEOUT`, `JOBS`, and `NUX_SMOKE_REUSE_BUILD` conventions as the i386 harness. It accepts timeout rc 124 only after the reviewed amd64 markers appear, including `IPI!`, userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` kernel/user markers, `User exited with error code: 42`, no unexpected kernel page fault, and repeated zero-valued `pnux_entry_pagefault` idle counter lines.
 
 ## Logging paths
 
@@ -62,7 +71,7 @@ Kernel code uses `printf`, `info`, `warn`, `error`, `fatal`, and `debug` macros 
 
 ## Known debugging gaps
 
-- The checked-in i386 smoke harness is not wired into CI and does not cover amd64/riscv64.
+- The checked-in i386 and amd64 smoke harnesses are not wired into CI; riscv64 still lacks a runnable harness until its target tools and `qemu-system-riscv64` are available.
 - No checked-in GDB command files were found.
 - RISC-V panic output is less detailed than x86 panic output.
 - `libnux/framebuffer.c` contains explicit TODO/XXX comments about RGB masks and bounds checks, so framebuffer debugging output may be fragile.

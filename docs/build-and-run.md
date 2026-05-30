@@ -47,19 +47,21 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
 ```
 
 For amd64, the default check still records missing default
-`amd64-unknown-elf-*` tools and default-PATH 32-bit target tools. The override
-path below is the reviewed container path: with the stable external i386
+`amd64-unknown-elf-*` tools and default-PATH 32-bit target tools. The supported
+local smoke path is the reviewed override: use the stable external i386
 `TOOLBIN`, `TOOLCHAIN=x86_64-linux-gnu`, and
-`TOOLCHAIN32=i686-unknown-elf`, amd64 preflight, configure, and `make` pass.
-The earlier amd64 QEMU failure was traced to host GCC default-PIE code
-generation in freestanding fixed-address objects; commit
-`8e1a5365dbdb2277fe9a2853f272765cbc6dd98e` adds compile-side `-fno-pie`,
-complementing commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0`'s link-side
-`-no-pie`. With both fixes, a bounded QEMU smoke reaches APXH/NUX boot output,
-`IPI!`, userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` kernel/user
-markers, `User exited with error code: 42`, and repeated
-`pnux_entry_pagefault 0`; treat timeout rc 124 as expected only after those
-success/idle markers appear because the example does not shut QEMU down:
+`TOOLCHAIN32=i686-unknown-elf`. That path passed preflight, configure, `make`,
+and bounded QEMU in the reviewed environment after the freestanding PIE fixes:
+commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e` adds compile-side
+`-fno-pie`, complementing commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0`'s
+link-side `-no-pie`. The checked-in `tools/qemu-smoke-amd64.sh` repeats the
+out-of-tree configure/build/QEMU flow for that override. It requires host
+`x86_64-linux-gnu-{gcc,ld,ar,objcopy}`, the 32-bit APXH compiler from
+`TOOLBIN`, `make`, and `qemu-system-x86_64` to be available in the runner. It
+counts timeout rc 124 as success only after APXH/NUX boot output, `IPI!`,
+userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` kernel/user markers,
+`User exited with error code: 42`, no unexpected kernel page fault, and repeated
+zero-valued `pnux_entry_pagefault` idle counter lines appear:
 
 ```sh
 TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
@@ -69,6 +71,9 @@ ARCH=amd64 ./tools/build-preflight.sh
 TOOLBIN="$TOOLBIN" ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf \
   ./tools/build-preflight.sh
 
+TOOLBIN="$TOOLBIN" ./tools/qemu-smoke-amd64.sh
+
+# Manual equivalent of the harness:
 PATH="$TOOLBIN:$PATH" ./configure ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf
 PATH="$TOOLBIN:$PATH" make
 (cd example && PATH="$TOOLBIN:$PATH" timeout --foreground 30s make qemu)
@@ -155,7 +160,7 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### amd64
 
 - Top-level `configure.ac` selects `libhal_x86` + `libplt_acpi`.
-- APXH `configure` selects `multiboot efi` for `amd64`. In this container the default `amd64-unknown-elf-*` tools are still absent; using the installed `x86_64-linux-gnu-*` prefix plus the reviewed i686 `TOOLCHAIN32` now passes preflight, configure, `make`, and a bounded QEMU smoke after the freestanding libec `-no-pie`/`-fno-pie` fixes. The bounded run reaches APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle counter markers before the expected timeout.
+- APXH `configure` selects `multiboot efi` for `amd64`. The default `amd64-unknown-elf-*` tools are still absent in the reviewed local paths; the standardized local smoke path uses the host-prefixed `x86_64-linux-gnu-*` override plus the reviewed i686 `TOOLCHAIN32`. `tools/qemu-smoke-amd64.sh` captures that out-of-tree flow after the freestanding libec `-no-pie`/`-fno-pie` fixes. The bounded run reaches APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle counter markers before the expected timeout.
 - `libhal_x86/amd64/exe.ld` uses the high-half base `0xffff800000000000`, 512 GiB physmap, 512 GiB KVA, 512 GiB KMEM, 256 MiB PFN cache, and 64 MiB framebuffer mapping.
 
 ### riscv64
@@ -262,10 +267,10 @@ Current integrated amd64/riscv64 follow-through evidence from tasks
 - Default amd64 preflight/configure remains blocked by missing default `amd64-unknown-elf-*` tools and `i686-unknown-elf-gcc` on the default `PATH`.
 - Worktree-local submodule initialization succeeded for the follow-through task; the current amd64 override path is not blocked by submodule checkout or workspace capacity.
 - The installed host-prefixed `x86_64-linux-gnu-{gcc,ld,ar,objcopy}` tools plus `TOOLCHAIN32=i686-unknown-elf` from the stable external i386 `TOOLBIN` are sufficient for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` preflight, configure, and `make` to pass after commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0` added `-no-pie` to freestanding libec links and commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e` added compile-side `-fno-pie`.
-- The baseline amd64 QEMU failure was traced to host GCC default-PIE code generation in freestanding fixed-address objects. With the override path after commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`, the bounded amd64 QEMU smoke reaches APXH/NUX boot output, `IPI!`, `Hello from userspace, NUX!`, `SYSC0` through `SYSC6`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `User exited with error code: 42`, and repeated `pnux_entry_pagefault 0`; timeout rc 124 is expected only after those success/idle markers.
+- The baseline amd64 QEMU failure was traced to host GCC default-PIE code generation in freestanding fixed-address objects. With the override path after commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`, the bounded amd64 QEMU smoke reaches APXH/NUX boot output, `IPI!`, `Hello from userspace, NUX!`, `SYSC0` through `SYSC6`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `User exited with error code: 42`, and repeated zero-valued `pnux_entry_pagefault` idle counter lines; timeout rc 124 is expected only after those success/idle markers.
 - i386 smoke remains passing with the stable external i386 `TOOLBIN`; the follow-up verification recorded `tools/qemu-smoke-i386.sh` rc 0.
 - Default riscv64 preflight/configure remains blocked by missing `riscv64-unknown-elf-*` tools and `qemu-system-riscv64`; no project-local `riscv64-unknown-elf-*`, `riscv64-elf-*`, or `riscv64-linux-gnu-*` toolchain was found.
 
 Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`.
 
-Remaining build/run gaps are not the old host compiler, i386 target-toolchain, i386 QEMU blocker, i386 submodule initialization, current amd64 submodule/workspace capacity, or the fixed amd64 default-PIE failure. The open items are a real default amd64 target toolchain or a reviewed policy that standardizes the `x86_64-linux-gnu` override, a checked-in amd64 smoke harness/CI policy if desired, and `qemu-system-riscv64` plus a RISC-V target toolchain for riscv64.
+The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. A task-local real `amd64-unknown-elf` build is not currently a low-risk substitute: fresh discovery found no `amd64-unknown-elf-*`, `amd64-elf-*`, `x86_64-unknown-elf-*`, or `x86_64-elf-*` candidates in PATH, task workspaces, or common bin roots; the `gcc_toolchain_build` source tree was not present locally; the stable i386 toolchain alone occupies about 2.0G; and the fresh implementer runner lacked `make`/host GCC/QEMU with `/home` already 98% used. The open items are therefore a future deliberate default amd64 target-toolchain provision if desired, CI policy for the checked-in amd64 harness, and `qemu-system-riscv64` plus a RISC-V target toolchain for riscv64.

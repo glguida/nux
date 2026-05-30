@@ -62,15 +62,18 @@ below.
   software-interrupt-based NMI/IPI emulation but incomplete external IRQ/PLIC
   wiring.
 - **Current smoke coverage.** `tools/qemu-smoke-i386.sh` performs the reviewed
-  out-of-tree i386 configure/build/QEMU serial-marker smoke path. The checked-in
-  `example/Makefile.in` QEMU targets use `-kernel example_qemu -serial
-  mon:stdio -nographic`; there is no checked-in real-disk-image QEMU path.
+  out-of-tree i386 configure/build/QEMU serial-marker smoke path.
+  `tools/qemu-smoke-amd64.sh` captures the standardized local amd64 override
+  path with `TOOLCHAIN=x86_64-linux-gnu` and `TOOLCHAIN32=i686-unknown-elf`.
+  The checked-in `example/Makefile.in` QEMU targets use `-kernel example_qemu
+  -serial mon:stdio -nographic`; there is no checked-in real-disk-image QEMU
+  path.
 
 ## Boundary matrix
 
 | Area | Current NUX status | Approved boundary | Evidence |
 | --- | --- | --- | --- |
-| Boot-path selection and entry handoff | Present for configured paths; only i386/multiboot is currently runtime-smoke verified in this container. | Preserve the APXH boot contract and verify target paths before relying on them. | `configure.ac`, `apxh/configure.ac`, `README.md`, `docs/build-and-run.md`, `docs/hardware-support.md` |
+| Boot-path selection and entry handoff | Present for configured paths; i386/multiboot has default-toolchain smoke coverage, and amd64/multiboot has reviewed override-path smoke coverage plus a checked-in harness. | Preserve the APXH boot contract and verify target paths before relying on them. | `configure.ac`, `apxh/configure.ac`, `README.md`, `docs/build-and-run.md`, `docs/hardware-support.md`, `tools/qemu-smoke-i386.sh`, `tools/qemu-smoke-amd64.sh` |
 | APXH boot info, physical-memory regions, PFN map, S-tree, physmap, framebuffer | Present. APXH normalizes boot data into `include/nux/apxh.h` structures and HAL linker-script areas. | This is the public boot-data contract; keep it explicit and tested. | `include/nux/apxh.h`, `apxh/src/elf.c`, `apxh/src/main.c`, `libhal_x86/*/exe.ld`, `libhal_riscv/exe.ld` |
 | Typed platform descriptor | Present as `struct apxh_pltdesc` with `PLT_ACPI`/`PLT_DTB` and `pltptr`. | Internal APXH-to-HAL/PLT handoff only; do not turn it into raw ACPI/DTB export or a table inventory. | `include/nux/apxh.h`, `apxh/multiboot/mb.c`, `apxh/efi/apxhefi/efi_md.c`, `apxh/sbi/md.c` |
 | Public kernel memory mapping primitives for MMIO | Present as low-level primitives, not a device model. | Kernels may use mapping primitives, but NUX does not infer PCI/ACPI/device policy for Murgia. | `include/nux/nux.h`, `libnux/kva.c`, `libnux/kmap.c`, `libnux/pfncache.c`, `include/nux/hal.h` |
