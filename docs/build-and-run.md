@@ -184,31 +184,48 @@ EFI makefile builds gnu-efi objects under the source submodule
 `contrib/gnu-efi/<ARCH>`; use a disposable worktree for verification and do not
 commit generated submodule dirt.
 
-EFI runtime smoke also needs an x86_64 OVMF/edk2 firmware image for QEMU. This
-container has `/usr/bin/qemu-system-x86_64` (`10.0.8`), but no OVMF/edk2 x86_64
-firmware was found under `/usr/share` or `/usr/lib`, `dpkg-query` reports
-`ovmf` as not installed, and `mformat`/`mcopy`/`mkfs.vfat` are absent. The
-checked-in EFI harness uses QEMU's `fat:rw:` directory backend, so the missing
-FAT helpers are not the first runtime blocker; the missing firmware is.
+EFI runtime smoke also needs an x86_64 OVMF/edk2 firmware image for QEMU. In
+this reviewed container, `/usr/bin/qemu-system-x86_64` reports `QEMU emulator
+version 10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`, and the bounded apt gate
+installed only `ovmf=2025.02-8+deb13u1` with no recommends:
 
-Use the conservative harness once firmware is available:
+```sh
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ovmf=2025.02-8+deb13u1
+```
+
+The simulation for that exact package showed one new package, 0 upgrades, and
+0 removals; `dpkg-query` now reports `ovmf 2025.02-8+deb13u1 install ok
+installed` with `Installed-Size: 16443`. Readable firmware includes
+`/usr/share/qemu/OVMF.fd`, `/usr/share/OVMF/OVMF_CODE_4M.fd`, and
+`/usr/share/OVMF/OVMF_VARS_4M.fd`. Local FAT-image helpers
+(`mformat`/`mcopy`/`mkfs.vfat`) remain separate host conveniences because the
+checked-in EFI harness uses QEMU's `fat:rw:` directory backend.
+
+Use the conservative harness to reproduce the current OVMF result, or name
+non-standard firmware explicitly on another runner:
 
 ```sh
 TOOLBIN="$AMD64_TOOLBIN" ./tools/qemu-smoke-amd64-efi.sh
 
-# Or name non-standard firmware explicitly:
 TOOLBIN="$AMD64_TOOLBIN" \
   OVMF_CODE=/path/to/OVMF_CODE.fd \
   OVMF_VARS=/path/to/OVMF_VARS.fd \
   ./tools/qemu-smoke-amd64-efi.sh
 ```
 
-The harness stages `EFI/BOOT/BOOTX64.EFI`, `kernel.elf`, and `user.elf` in an
-out-of-tree build directory and accepts timeout rc 124 only after the same
-meaningful amd64 APXH/NUX/userspace serial markers as the multiboot smoke. In
-this container it fails early with `OVMF/edk2 x86_64 firmware not found`; do
-not claim amd64 EFI runtime coverage until an operator provides OVMF/edk2
-firmware and the harness reaches the required markers.
+After initializing submodules in the dedicated worktree,
+`PATH="$AMD64_TOOLBIN:$PATH" ARCH=amd64 ./tools/build-preflight.sh` passed.
+`TOOLBIN="$AMD64_TOOLBIN" ./tools/qemu-smoke-amd64-efi.sh` no longer fails on
+missing firmware: it stages `EFI/BOOT/BOOTX64.EFI`, `kernel.elf`, and
+`user.elf`, boots under OVMF, reaches `APXH started.` and `NUX library (nux)`,
+then fails before the IPI/userspace/syscall/exit/idle markers on
+`Assertion 'diff >= 0' failed at libnux/alloc.h:192` in
+`kva_alloc -> kva_physmap -> load_table -> acpi_init -> plt_init`. Explicit
+split firmware (`/usr/share/OVMF/OVMF_CODE_4M.fd` plus
+`/usr/share/OVMF/OVMF_VARS_4M.fd`) and a manual monolithic
+`-bios /usr/share/ovmf/OVMF.fd` run reproduce the same assertion. Do not claim
+amd64 EFI runtime coverage until the next bounded code/runtime task fixes this
+ACPI/KVA allocator blocker and the harness reaches the required markers.
 
 For riscv64, the current container has a verified Debian package path for the
 standard target tools and QEMU: `binutils-riscv64-unknown-elf` 2.44-3+7+b1,
@@ -434,8 +451,9 @@ Representative logs for the original stable-path verification are `/tmp/the-nux-
 
 Current integrated amd64/riscv64 follow-through evidence from tasks
 `the-nux-amd64-build-smoke-followthrough`,
-`the-nux-amd64-runtime-page-fault-followup`, and
-`the-nux-riscv64-smoke-tooling-followthrough` is:
+`the-nux-amd64-runtime-page-fault-followup`,
+`the-nux-riscv64-smoke-tooling-followthrough`, and the amd64 EFI OVMF
+follow-through is:
 
 - `./configure --help` advertises `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64`.
 - QEMU: `/usr/bin/qemu-system-x86_64` and `/usr/bin/qemu-system-riscv64` are present and report QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
@@ -447,7 +465,8 @@ Current integrated amd64/riscv64 follow-through evidence from tasks
 - riscv64 default target tools are present from the bounded Debian package path: `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `gcc-riscv64-unknown-elf` 14.2.0+19, and `qemu-system-misc` 1:10.0.8+ds-0+deb13u1+b2, with required dependencies `opensbi` 1.6-1, `qemu-system-riscv`, and `qemu-system-s390x`. With initialized submodules, `ARCH=riscv64 ./tools/build-preflight.sh` passes.
 - The verified riscv64 runtime path is the explicit SBI/DTB subset build used by `tools/qemu-smoke-riscv64.sh`; bounded QEMU reaches OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA markers and repeated zero-valued `pnux_entry_pagefault` idle counters before the expected timeout.
 - Default full riscv64 top-level `make` uses the APXH `sbi` path; RISC-V EFI remains unverified and unselected by default after reproducing the old default EFI subdir selection failure: Debian `riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
+- amd64 EFI now has local OVMF coverage rather than a missing-firmware blocker: `ovmf 2025.02-8+deb13u1` is installed outside the repository, the checked-in harness reaches APXH/NUX under OVMF, and runtime verification is blocked by the `libnux/alloc.h:192` KVA assertion during `acpi_init` before the normal amd64 runtime markers.
 
 Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-riscv64-smoke-tooling-followthrough-impl/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-default-toolchain-readme-build-impl/workspace/logs`.
 
-The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. The later README toolchain follow-through provisioned a real default-prefix cache from a local `gcc_toolchain_build` checkout at commit `eecef0929616a96517a83dab988a8429ad8c62d8`, copied its `install/` artifact into `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build`, and verified default `ARCH=amd64` preflight, configure, `make -j1`, direct bounded `make qemu`, and `tools/qemu-smoke-amd64.sh` forced to `TOOLCHAIN=amd64-unknown-elf TOOLCHAIN32=i686-unknown-elf`. The override smoke path remains verified separately. The riscv64 path is runnable in the current container through the checked-in SBI/DTB smoke harness; remaining open items are CI/toolchain-cache policy for checked-in smoke harnesses, amd64 EFI-specific runtime verification, and a separate policy/toolchain decision before treating RISC-V APXH EFI as a verified path.
+The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. The later README toolchain follow-through provisioned a real default-prefix cache from a local `gcc_toolchain_build` checkout at commit `eecef0929616a96517a83dab988a8429ad8c62d8`, copied its `install/` artifact into `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build`, and verified default `ARCH=amd64` preflight, configure, `make -j1`, direct bounded `make qemu`, and `tools/qemu-smoke-amd64.sh` forced to `TOOLCHAIN=amd64-unknown-elf TOOLCHAIN32=i686-unknown-elf`. The override smoke path remains verified separately. The riscv64 path is runnable in the current container through the checked-in SBI/DTB smoke harness; remaining open items are CI/toolchain-cache policy for checked-in smoke harnesses, fixing the amd64 EFI ACPI/KVA runtime blocker, and a separate policy/toolchain decision before treating RISC-V APXH EFI as a verified path.

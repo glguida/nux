@@ -37,8 +37,10 @@ below.
   `libplt_sbi` for `riscv64`. APXH `apxh/configure.ac` selects `multiboot` for
   `i386`, `multiboot efi` for `amd64`, and `sbi` for `riscv64`. The i386
   multiboot path, amd64 multiboot default-prefix and override paths, and
-  riscv64 SBI/DTB path have reviewed smoke coverage; EFI-specific amd64 and
-  RISC-V coverage still need separate verification.
+  riscv64 SBI/DTB path have reviewed smoke coverage. amd64 EFI builds and
+  launches under local OVMF to APXH/NUX but is blocked by the generic ACPI/KVA
+  allocator assertion before runtime markers; RISC-V EFI still needs separate
+  platform-contract/toolchain verification.
 - **APXH boot contract.** APXH writes `struct apxh_bootinfo`,
   `struct apxh_region`, `struct apxh_stree`, and `struct apxh_pltdesc` from
   `include/nux/apxh.h`. Common APXH code handles APXH ELF program headers for

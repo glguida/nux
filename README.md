@@ -48,10 +48,17 @@ failure caused by host GCC default-PIE code generation in freestanding
 fixed-address objects is fixed by commit
 `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`. The riscv64 default
 target-toolchain/QEMU path is the reviewed SBI/DTB path. The amd64 EFI APXH
-loader builds with the same README-built default amd64 cache, but EFI runtime
-smoke requires local x86_64 OVMF/edk2 firmware; this container currently lacks
-those assets, so only the EFI build path is verified here. RISC-V EFI
-platform-contract verification remains open; see
+loader builds with the same README-built default amd64 cache, and this
+container now has `/usr/bin/qemu-system-x86_64` (QEMU `10.0.8 (Debian
+1:10.0.8+ds-0+deb13u1+b2)`) plus `ovmf 2025.02-8+deb13u1` installed outside
+the repository. With `/usr/share/qemu/OVMF.fd` or split
+`/usr/share/OVMF/OVMF_CODE_4M.fd` plus `/usr/share/OVMF/OVMF_VARS_4M.fd`,
+`tools/qemu-smoke-amd64-efi.sh` boots under OVMF and reaches `APXH started.`
+and `NUX library (nux)`, but it stops before the IPI/userspace/syscall/exit/idle
+markers on `Assertion 'diff >= 0' failed at libnux/alloc.h:192` in
+`kva_alloc -> kva_physmap -> load_table -> acpi_init -> plt_init`. Treat amd64
+EFI as build + early-boot verified only until that ACPI/KVA allocator blocker is
+fixed. RISC-V EFI platform-contract verification remains open; see
 [docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
