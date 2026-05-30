@@ -9,7 +9,7 @@ support that is not present in tracked source.
 ## Evidence scope
 
 This inventory inspected the current tracked NUX tree at base commit
-`3553b7ad9a243441788cf9bcf2ede10c1762f0fb`, including:
+`93780903f6c3d4fa25be7f0ecd9f70eba67a4679` plus the ACPI/platform-facts slice, including:
 
 - APXH and configure paths: `configure.ac`, `apxh/configure.ac`, `apxh/src/*`,
   `apxh/multiboot/*`, `apxh/efi/*`, `apxh/sbi/*`, and `README.md`.
@@ -52,9 +52,12 @@ below.
   areas. The x86 HAL also appends pinned MMIO regions for PFN 0 and PFN `0xa0`
   length 96 and removes those PFNs from the S-tree allocator (`libhal_x86/x86.c`).
 - **x86 ACPI/platform facts.** `libplt_acpi/plt.c` requires a `PLT_ACPI`
-  descriptor. `libplt_acpi/acpi.c` loads RSDT/XSDT entries, records only APIC
+  descriptor and now emits `NUX ACPI PLT FACTS:` with the consumed RSDP
+  physical address. `libplt_acpi/acpi.c` loads RSDT/XSDT entries, records APIC
   and HPET tables, scans MADT LAPIC/IOAPIC/LAPIC-NMI/interrupt-override entries,
-  and explicitly ignores LSAPIC, x2APIC, IOSAPIC, and LX2APICNMI entries.
+  counts ignored LSAPIC, x2APIC, IOSAPIC, and LX2APICNMI entries, and emits
+  deterministic `NUX ACPI FACTS:`, `NUX ACPI MADT FACTS:`,
+  `NUX ACPI GSI FACTS:`, and `NUX ACPI HPET FACTS:` serial markers.
   `libplt_acpi/lapic.c`, `ioapic.c`, and `hpet.c` initialize LAPIC, IOAPIC/GSI,
   and HPET timer support.
 - **Interrupt/timer interfaces.** `include/nux/plt.h` exposes platform CPU,
@@ -78,8 +81,8 @@ below.
 | Boot-path selection and entry handoff | Present for configured paths; only i386/multiboot is currently runtime-smoke verified in this container. | `configure.ac`, `apxh/configure.ac`, `README.md`, `docs/build-and-run.md`, `docs/hardware-support.md` | Preserve i386 coverage; add bounded amd64/riscv64 verification before relying on those paths. |
 | APXH boot info, physical-memory regions, PFN map, S-tree, physmap, framebuffer | Present. APXH normalizes boot data into `include/nux/apxh.h` structures and HAL linker-script areas. | `include/nux/apxh.h`, `apxh/src/elf.c`, `apxh/src/main.c`, `libhal_x86/*/exe.ld`, `libhal_riscv/exe.ld` | Keep this contract explicit; add tests that platform facts are present and sane. |
 | Public kernel memory mapping primitives for MMIO | Present as low-level primitives, not a device model. | `include/nux/nux.h`, `libnux/kva.c`, `libnux/kmap.c`, `libnux/pfncache.c`, `include/nux/hal.h` | Document/guard intended MMIO usage and failure behavior before exposing higher device discovery to Murgia. |
-| x86 ACPI RSDT/XSDT table access | Partially present and internal. NUX loads ACPI tables but records/uses only APIC and HPET today. | `libplt_acpi/acpi.c`, `libplt_acpi/plt.c` | Make ACPI/platform facts explicit and testable before PCIe/storage work. |
-| x86 MADT, LAPIC, IOAPIC, GSI, HPET | Present for legacy/local APIC, IOAPIC/GSI routing, and HPET timer. Modern APIC variants are incomplete. | `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`, `include/nux/plt.h` | Expose IRQ routing/controller facts needed by Murgia and add tests. |
+| x86 ACPI RSDT/XSDT table access | Present internally and serial-inventory logged for the selected RSDT/XSDT root plus APIC/HPET table presence. There is still no public generic ACPI table inventory or MCFG/DMAR/IVRS handoff. | `libplt_acpi/acpi.c`, `libplt_acpi/plt.c`, `tools/qemu-smoke-i386.sh` | Next slice: parse/expose PCIe MCFG/ECAM facts and safe config-space access. |
+| x86 MADT, LAPIC, IOAPIC, GSI, HPET | Present for legacy/local APIC, IOAPIC/GSI routing, and HPET timer, with deterministic serial facts for LAPIC/IOAPIC counts, selected LAPIC base, GSI range, HPET init result, and ignored modern APIC entry counts. Modern APIC variants remain unsupported. | `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`, `include/nux/plt.h`, `tools/qemu-smoke-i386.sh` | Expose richer IRQ routing/controller facts needed by Murgia after MCFG/PCIe facts. |
 | RISC-V DTB and timer | Partially present. DTB `/cpus`, `timebase-frequency`, and PLIC contexts are read; timer calls exist. | `apxh/sbi/md.c`, `libplt_sbi/sbi.c`, `libhal_riscv/riscv.c` | Finish or explicitly bound PLIC/external IRQ and secondary CPU work before treating RISC-V as a modern hardware target for Murgia. |
 | PCI/PCIe device discovery | Absent. No tracked source implementation of PCI bus walking or PCIe enumeration was found. | Negative tracked-source search; adjacent current code is only ACPI APIC/HPET in `libplt_acpi/acpi.c` | After ACPI facts, parse/expose PCIe MCFG/ECAM facts and safe config-space access. |
 | ACPI MCFG / PCIe ECAM | Absent. No MCFG table parsing or ECAM accessor is present. | Negative tracked-source search for `MCFG`/`ECAM`; existing docs already mark this absent. | Add a focused MCFG/ECAM substrate slice before AHCI. |
@@ -91,10 +94,12 @@ below.
 
 ## Current gaps for modern hardware bootstrap and storage
 
-1. **ACPI facts are not yet a public substrate.** NUX can load ACPI tables and
-   initialize MADT/HPET-driven x86 platform devices, but `libplt_acpi/acpi.c`
-   only stores APIC and HPET table addresses. There is no public table inventory
-   or MCFG/DMAR/IVRS handoff for Murgia to consume.
+1. **ACPI facts are now explicit runtime evidence, but not yet a public device
+   substrate.** NUX logs the consumed RSDP, selected RSDT/XSDT root, APIC/HPET
+   table presence, MADT LAPIC/IOAPIC/GSI counts, ignored modern APIC entries,
+   and HPET init result on the x86 serial path. There is still no public generic
+   ACPI table inventory, MCFG/ECAM facts, PCI enumeration, or DMAR/IVRS handoff
+   for Murgia to consume.
 2. **No PCIe ECAM substrate exists.** Without MCFG parsing, segment/bus range
    facts, and safe config-space access, Murgia cannot reliably discover AHCI or
    other PCIe devices through NUX.
@@ -116,11 +121,12 @@ below.
 
 ## Prioritized NUX substrate plan for Murgia
 
-1. **Make ACPI/platform facts explicit and testable.** Keep the change small:
-   expose or log a bounded table/platform-fact inventory from existing x86 ACPI
-   discovery, include RSDP/RSDT/XSDT selection, APIC presence, HPET presence,
-   GSI count/type, and ignored modern APIC entries. Add serial smoke markers or
-   a small platform-fact check so this does not remain prose-only.
+1. **Keep the ACPI/platform-fact markers covered.** The first slice logs a
+   bounded table/platform-fact inventory from existing x86 ACPI discovery:
+   RSDP/RSDT/XSDT selection, APIC presence, HPET presence/init result,
+   LAPIC/IOAPIC counts, GSI range, and ignored modern APIC entry counts. The
+   i386 smoke harness requires those serial markers so this does not remain
+   prose-only.
 2. **Expose PCIe MCFG/ECAM facts and safe config-space access.** Parse ACPI MCFG
    into segment/bus/window records, validate physical ranges through existing
    memory/MMIO primitives, and provide a minimal C-style accessor for config
@@ -141,9 +147,10 @@ below.
 ## Murgia handoff / blocker
 
 The source-backed blocker for Murgia's AHCI/filesystem direction is not a
-Murgia ABI problem; it is the missing NUX modern-hardware substrate. Until NUX
-has explicit ACPI platform facts, PCIe MCFG/ECAM access, IRQ routing facts, and
-at least IOMMU discovery/DMA-remap planning, Murgia should not depend on NUX for
-modern storage-device enumeration or real-disk-image boot tests. The next NUX
-slice should therefore be ACPI/platform fact exposure and tests, followed by
-MCFG/ECAM.
+Murgia ABI problem; it is the missing NUX modern-hardware substrate. NUX now has
+explicit/tested x86 ACPI platform-fact serial evidence, but it still lacks PCIe
+MCFG/ECAM access, richer device IRQ routing facts, and IOMMU discovery/DMA-remap
+planning. Murgia should not depend on NUX for modern storage-device enumeration
+or real-disk-image boot tests until those follow-up substrate slices exist. The
+next NUX slice should therefore be MCFG/ECAM facts and safe PCIe config-space
+access.

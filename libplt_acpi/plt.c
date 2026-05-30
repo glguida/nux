@@ -6,6 +6,7 @@
 */
 
 #include <stddef.h>
+#include <inttypes.h>
 #include <nux/hal.h>
 #include <nux/nux.h>
 #include <nux/apxh.h>
@@ -27,7 +28,9 @@ plt_init (void)
   if (desc->type != PLT_ACPI)
     fatal ("No ACPI RSDP found.");
 
-  printf ("RSDP: %llx\n", desc->pltptr);
+  printf ("RSDP: %" PRIx64 "\n", (uint64_t) desc->pltptr);
+  info ("NUX ACPI PLT FACTS: type=PLT_ACPI rsdp=%" PRIx64,
+	(uint64_t) desc->pltptr);
 
   acpi_init (desc->pltptr);
   acpi_madt_scan ();

@@ -229,6 +229,8 @@ gsi_start (void)
   /* 1:1 map GSI <-> Kernel IRQ */
   for (i = 0; i < gsis_no; i++)
     gsi_register (i, APIC_VECT_IRQBASE + i);
+
+  acpi_gsi_facts (gsis_no);
 }
 
 void

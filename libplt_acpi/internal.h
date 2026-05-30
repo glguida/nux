@@ -25,7 +25,7 @@ void gsi_init (void);
 void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode);
 void gsi_start (void);
 
-
+void acpi_gsi_facts (unsigned gsi_count);
 void acpi_init (paddr_t rdsp);
 void acpi_madt_scan (void);
 

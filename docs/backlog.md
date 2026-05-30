@@ -17,7 +17,7 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Historical blocker: the reviewed target-toolchain slice said `make qemu` failed at `qemu-system-i386: No such file or directory`; `qemu-system-x86_64` was also absent.
    - Current reviewed status: apt package `qemu-system-x86` is installed with `--no-install-recommends`, providing `/usr/bin/qemu-system-i386` and `/usr/bin/qemu-system-x86_64` at QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
    - Verification: fresh `/tmp/the-nux-i386-qemu-stable-path-build-i386` with stable `TOOLBIN` prepended to `PATH` passed `ARCH=i386` configure, `make -j"$(nproc)"`, and a bounded `timeout --foreground 20s make qemu`. The command returned rc 124 only after serial success markers appeared: `APXH started.`, `NUX library (nux)`, userspace hello, `SYSC0`/`SYSC6` passed, and `User exited with error code: 42`. Later source fixes repeated the same flow and added regression markers: the `uctxt_seta2()` fix added `UCTXT_SETA2 test passed.` plus `UCTXT_SETA2 user test passed.`, the `uaddr_validrange()` fix added `UADDR_VALIDRANGE test passed.`, and the KVA metadata-removal fix added `KVA_ALLOC_FREE test passed.`.
-   - Current harness: `tools/qemu-smoke-i386.sh` now runs the reviewed out-of-tree i386 configure/build/QEMU flow with a configurable `TOOLBIN`, captures serial output, and treats timeout rc 124 as a pass only after the required APXH/NUX/userspace/regression markers appear.
+   - Current harness: `tools/qemu-smoke-i386.sh` now runs the reviewed out-of-tree i386 configure/build/QEMU flow with a configurable `TOOLBIN`, captures serial output, requires the ACPI/platform fact markers plus the APXH/NUX/userspace/regression markers, rejects fatal markers, and treats timeout rc 124 as a pass only after the required markers appear.
    - Follow-up trigger: integrate the checked-in harness into CI or extend it for other architectures after their target-toolchain/QEMU paths are reviewed.
 4. **Submodules are initialized and verified for the i386 smoke path in this task workspace.**
    - Evidence: `.gitmodules` lists `contrib/gnu-efi`, `contrib/binutils`, and `contrib/dtc`; the `uctxt_seta2()` worktree initially showed them uninitialized with leading `-`.
@@ -84,15 +84,15 @@ This backlog is source-inspected only unless a verification result, task-log ite
     - Next slice: prioritize x2APIC if modern hardware support is a near-term goal.
 13. **Add Murgia modern-hardware substrate in bounded slices.**
     - Evidence: task-log comment `2026-05-29T21:51:15Z` records the Murgia/MH design constraint that IOMMU support should stay transparent beneath the existing `hwdev`/`sys_export`/`dexport` device/export semantics. The source-backed inventory in `docs/murgia-substrate-roadmap.md` records current NUX capabilities and gaps for bootstrap, ACPI, PCIe, IRQ, IOMMU, storage, filesystem, and harness work.
-    - Current behavior: tracked x86 platform code scans ACPI RSDP/RSDT/XSDT for MADT and HPET, then initializes LAPIC, IOAPIC, and HPET support. Public NUX primitives already include PFN/KVA/KMAP/UMAP and `kva_physmap()` for CPU-side physical/MMIO mappings. A source/doc search found no current PCI bus enumeration, ACPI MCFG/PCIe ECAM discovery, MSI/MSI-X support, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping map/unmap API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness.
+    - Current behavior: tracked x86 platform code scans ACPI RSDP/RSDT/XSDT for MADT and HPET, initializes LAPIC, IOAPIC/GSI, and HPET support, and emits deterministic serial markers for the consumed RSDP, selected RSDT/XSDT root, APIC/HPET table presence, MADT LAPIC/IOAPIC counts, selected LAPIC base, GSI range, ignored modern APIC entry counts, and HPET init result. Public NUX primitives already include PFN/KVA/KMAP/UMAP and `kva_physmap()` for CPU-side physical/MMIO mappings. A source/doc search found no current PCI bus enumeration, ACPI MCFG/PCIe ECAM discovery, MSI/MSI-X support, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping map/unmap API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness.
     - Design constraint: if an IOMMU is present, NUX/Murgia internals should route DMA through IOMMU-backed mappings while preserving the same user-facing device/export ABI; if absent, the no-IOMMU fallback should remain behind that same ABI.
     - Priority order:
-      1. Make existing ACPI/platform facts explicit and testable: RSDP/RSDT/XSDT selection, APIC and HPET presence, GSI count/type, and ignored modern APIC entries.
+      1. Keep the ACPI/platform fact markers covered in the i386 smoke harness.
       2. Expose PCIe MCFG/ECAM facts and safe config-space access without implementing AHCI policy.
       3. Expose IRQ routing/controller facts needed by Murgia; treat MSI/MSI-X as a focused follow-up once PCI capability access exists.
       4. Add IOMMU discovery facts for DMAR/IVRS, then DMA-remap primitives behind Murgia's stable ABI.
       5. Preserve i386 QEMU harness coverage; add amd64/riscv64 and later disk-image harnesses only as bounded tasks after the substrate pieces they exercise exist.
-    - Next slice: implement the first ACPI/platform-facts step and test it; do not begin AHCI/filesystem or Murgia ABI work from this item.
+    - Next slice: implement MCFG/ECAM fact exposure and safe PCIe config-space access; do not begin AHCI/filesystem or Murgia ABI work from this item.
 
 ## P2: usability, tests, and polish
 
@@ -100,7 +100,7 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Evidence: task-log comment `2026-05-29T19:19:31Z` identifies `/home/glguida/the_nux/PORTING_0_EM` as a base-checkout binary/ELF artifact to preserve. A local magic-byte check in this fix job read `7f454c46` (`ELF`) and size `303904` bytes; `file(1)` was unavailable in the container.
    - Next slice: if analysis is authorized, inspect it with appropriate binary tools (`readelf`, `objdump`, or equivalent) and record metadata separately. Do not edit it, delete it, or treat it as Markdown/source documentation.
 2. **Checked-in automated i386 smoke harness is implemented.**
-   - Evidence: `tools/qemu-smoke-i386.sh` runs from a source checkout/worktree, uses an out-of-tree build directory (defaulting under `/tmp`, overridable with `BUILD` or `NUX_BUILD`), prepends `TOOLBIN` when provided, runs `configure ARCH=i386`, `make`, and bounded `make qemu`, captures QEMU serial output, and verifies the reviewed APXH/NUX/userspace/regression markers before accepting timeout rc 124.
+   - Evidence: `tools/qemu-smoke-i386.sh` runs from a source checkout/worktree, uses an out-of-tree build directory (defaulting under `/tmp`, overridable with `BUILD` or `NUX_BUILD`), prepends `TOOLBIN` when provided, runs `configure ARCH=i386`, `make`, and bounded `make qemu`, captures QEMU serial output, verifies the reviewed ACPI/platform fact markers plus APXH/NUX/userspace/regression markers, and rejects fatal markers before accepting timeout rc 124.
    - Follow-up trigger: add CI wiring, GDB/debug variants, or analogous amd64/riscv64 smoke harnesses only after those architectures have reviewed toolchain/QEMU paths.
 3. **Add GDB/debugging helpers.**
    - Evidence: QEMU debug target exists but no GDB scripts were found.

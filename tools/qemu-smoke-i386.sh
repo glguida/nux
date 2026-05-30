@@ -137,6 +137,11 @@ while IFS= read -r marker; do
     fi
 done <<'MARKERS'
 APXH started.
+NUX ACPI PLT FACTS:
+NUX ACPI FACTS:
+NUX ACPI MADT FACTS:
+NUX ACPI GSI FACTS:
+NUX ACPI HPET FACTS:
 NUX library (nux)
 Hello from userspace, NUX!
 SYSC0 test passed.
@@ -151,6 +156,23 @@ MARKERS
 if [ "$missing" -ne 0 ]; then
     tail -n 200 "$qemu_log" >&2 || true
     die "QEMU smoke markers missing; see $qemu_log"
+fi
+
+fatal=0
+while IFS= read -r marker; do
+    [ -n "$marker" ] || continue
+    if grep -Fq -- "$marker" "$qemu_log"; then
+        echo "$prog: fatal marker present: $marker" >&2
+        fatal=1
+    fi
+done <<'FATAL_MARKERS'
+Fatal:
+Fatal error
+FATAL_MARKERS
+
+if [ "$fatal" -ne 0 ]; then
+    tail -n 200 "$qemu_log" >&2 || true
+    die "QEMU smoke fatal markers present; see $qemu_log"
 fi
 
 if [ "$qemu_rc" -eq 124 ]; then
