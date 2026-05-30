@@ -33,9 +33,11 @@ Configured APXH boot paths are architecture-specific:
 - amd64: `multiboot` and `EFI`
 - riscv64: `SBI` and `EFI`
 
-The verified path in the current task environment is i386/multiboot. Non-i386
-build/runtime flows and the RISC-V EFI platform contract still need verification;
-see [docs/hardware-support.md](docs/hardware-support.md).
+The full runtime-smoke path in the current task environment is i386/multiboot.
+The amd64 path has partial override build/QEMU coverage, but it still needs
+runtime page-fault debugging before it is a full smoke pass. The riscv64
+target-toolchain, QEMU, and EFI platform-contract verification remain open; see
+[docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
 

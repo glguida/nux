@@ -46,17 +46,27 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
   ./tools/qemu-smoke-i386.sh
 ```
 
-For amd64, the default check records the current missing default target prefix;
-the override check repeats the configure-capable prefix combination that has
-been verified in this container. This is still only preflight/configure evidence,
-not a full build or QEMU run:
+For amd64, the default check still records missing default
+`amd64-unknown-elf-*` tools and default-PATH 32-bit target tools. The override
+path below is the reviewed container path: with the stable external i386
+`TOOLBIN`, `TOOLCHAIN=x86_64-linux-gnu`, and
+`TOOLCHAIN32=i686-unknown-elf`, amd64 preflight, configure, and `make` pass
+after commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0` disabled PIE for
+freestanding libec links. A bounded QEMU smoke reaches APXH/NUX and the
+regression markers before the known `Unexpected Kernel Page Fault`; treat that
+as partial runtime coverage, not a full amd64 smoke pass:
 
 ```sh
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
+
 ARCH=amd64 ./tools/build-preflight.sh
 
-TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
-  ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf \
+TOOLBIN="$TOOLBIN" ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf \
   ./tools/build-preflight.sh
+
+PATH="$TOOLBIN:$PATH" ./configure ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf
+PATH="$TOOLBIN:$PATH" make
+(cd example && PATH="$TOOLBIN:$PATH" timeout --foreground 30s make qemu)
 ```
 
 For riscv64, the same helper keeps the missing target-toolchain and missing
@@ -140,7 +150,7 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### amd64
 
 - Top-level `configure.ac` selects `libhal_x86` + `libplt_acpi`.
-- APXH `configure` selects `multiboot efi` for `amd64`. In this container the default `amd64-unknown-elf-*` tools are still absent; using the installed `x86_64-linux-gnu-*` prefix plus the reviewed i686 `TOOLCHAIN32` lets configure complete, but the full build has not passed yet.
+- APXH `configure` selects `multiboot efi` for `amd64`. In this container the default `amd64-unknown-elf-*` tools are still absent; using the installed `x86_64-linux-gnu-*` prefix plus the reviewed i686 `TOOLCHAIN32` now passes preflight, configure, and `make` after the freestanding libec `-no-pie` fix. Bounded QEMU reaches APXH/NUX and regression markers, then hits the known `Unexpected Kernel Page Fault`; this is partial runtime coverage, not a full amd64 smoke pass.
 - `libhal_x86/amd64/exe.ld` uses the high-half base `0xffff800000000000`, 512 GiB physmap, 512 GiB KVA, 512 GiB KMEM, 256 MiB PFN cache, and 64 MiB framebuffer mapping.
 
 ### riscv64
@@ -238,15 +248,17 @@ In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `ma
 
 Representative logs for the original stable-path verification are `/tmp/the-nux-i386-qemu-doc-toolchain-configure-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-make-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-i386.txt`, and `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-markers.txt`. The `uctxt_seta2()` fix repeated the flow from `/tmp/the-nux-uctxt-seta2-build-i386` after initializing submodules in its dedicated worktree; logs are `/tmp/the-nux-uctxt-seta2-configure-i386.txt`, `/tmp/the-nux-uctxt-seta2-make-i386.txt`, `/tmp/the-nux-uctxt-seta2-qemu-i386.txt`, and `/tmp/the-nux-uctxt-seta2-qemu-markers.txt`. The `uaddr_validrange()` fix repeated the same smoke path from `/tmp/the-nux-uaddr-validrange-build-i386`; logs are `/tmp/the-nux-uaddr-validrange-configure-i386.txt`, `/tmp/the-nux-uaddr-validrange-make-i386.txt`, `/tmp/the-nux-uaddr-validrange-qemu-i386.txt`, and `/tmp/the-nux-uaddr-validrange-qemu-markers.txt`. The KVA metadata-removal fix repeated it from `/tmp/the-nux-kva-vmap-free-build-i386`; logs are `/tmp/the-nux-kva-vmap-free-configure-i386.txt`, `/tmp/the-nux-kva-vmap-free-make-i386.txt`, `/tmp/the-nux-kva-vmap-free-qemu-i386.txt`, and `/tmp/the-nux-kva-vmap-free-qemu-markers.txt`.
 
-A 2026-05-30 amd64/riscv64 capability probe in task `the-nux-amd64-riscv-smoke` found:
+Current integrated amd64/riscv64 follow-through evidence from task
+`the-nux-amd64-build-smoke-followthrough` is:
 
 - `./configure --help` advertises `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64`.
 - QEMU: `/usr/bin/qemu-system-x86_64` is present and reports QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`; `qemu-system-riscv64` is not on `PATH`.
-- Default amd64 configure is still blocked at the target-toolchain probe: `amd64-unknown-elf-gcc not found`.
-- The installed host-prefixed `x86_64-linux-gnu-{gcc,ld,ar,objcopy}` tools plus `TOOLCHAIN32=i686-unknown-elf` from the stable i386 `TOOLBIN` are sufficient for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` configure to complete through the top-level, APXH, and example sub-configures.
-- The follow-on amd64 build did not reach QEMU. It stopped while building submodule-dependent `tools/libbfd` and APXH EFI pieces because the dedicated worktree submodules were not fully checked out; attempting `git submodule update --init --recursive` in that worktree then failed with `No space left on device` while checking out `contrib/binutils`.
-- Default riscv64 configure is blocked at `riscv64-unknown-elf-gcc not found`; no project-local `riscv64-unknown-elf-*`, `riscv64-elf-*`, or `riscv64-linux-gnu-*` toolchain and no `qemu-system-riscv64` were found.
+- Default amd64 preflight/configure remains blocked by missing default `amd64-unknown-elf-*` tools and `i686-unknown-elf-gcc` on the default `PATH`.
+- Worktree-local submodule initialization succeeded for the follow-through task; the current amd64 override path is not blocked by submodule checkout or workspace capacity.
+- The installed host-prefixed `x86_64-linux-gnu-{gcc,ld,ar,objcopy}` tools plus `TOOLCHAIN32=i686-unknown-elf` from the stable external i386 `TOOLBIN` are sufficient for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` preflight, configure, and `make` to pass after commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0` added `-no-pie` to freestanding libec links.
+- The bounded amd64 QEMU smoke reaches APXH/NUX boot output and regression markers including `UADDR_VALIDRANGE test passed` and `KVA_ALLOC_FREE test passed`, then hits the known `Unexpected Kernel Page Fault` before the timeout terminates QEMU. This is partial runtime coverage, not a full amd64 smoke pass.
+- Default riscv64 preflight/configure remains blocked by missing `riscv64-unknown-elf-*` tools and `qemu-system-riscv64`; no project-local `riscv64-unknown-elf-*`, `riscv64-elf-*`, or `riscv64-linux-gnu-*` toolchain was found.
 
-The job evidence logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-riscv-smoke-capability-impl/workspace/evidence/`, including `configure-amd64-default.log`, `configure-amd64-x86_64-linux-gnu.log`, `make-amd64-x86_64-linux-gnu.log`, `configure-riscv64-default.log`, `tool-discovery.log`, `state-toolchain-discovery.log`, and `submodule-update.log`.
+Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`.
 
-Remaining build/run gaps are not the old host compiler, i386 target-toolchain, i386 QEMU blocker, or i386 submodule initialization. The open items are a real amd64 target-toolchain or a reviewed decision to support the `x86_64-linux-gnu` prefix for amd64, enough free workspace/submodule checkout capacity to complete the amd64 build, `qemu-system-riscv64` plus a RISC-V target toolchain for riscv64, and the source fixes tracked in `docs/backlog.md`.
+Remaining build/run gaps are not the old host compiler, i386 target-toolchain, i386 QEMU blocker, i386 submodule initialization, or current amd64 submodule/workspace capacity. The open items are a real default amd64 target toolchain or a reviewed policy that standardizes the `x86_64-linux-gnu` override, debugging the amd64 runtime page fault before claiming a full smoke pass, and `qemu-system-riscv64` plus a RISC-V target toolchain for riscv64.
