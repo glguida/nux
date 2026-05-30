@@ -50,15 +50,36 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
   ./tools/qemu-smoke-i386.sh
 ```
 
-For amd64, the default check still records missing default
-`amd64-unknown-elf-*` tools and default-PATH 32-bit target tools. The supported
-local smoke path is the reviewed override: use the stable external i386
-`TOOLBIN`, `TOOLCHAIN=x86_64-linux-gnu`, and
+For amd64, use the README `gcc_toolchain_build` install bin directory on
+`PATH` to exercise the real default freestanding target-toolchain path. In this
+task environment, the reviewed cache contains both `amd64-unknown-elf-*` and
+`i686-unknown-elf-*` tools built from `gcc_toolchain_build` commit
+`eecef0929616a96517a83dab988a8429ad8c62d8`:
+
+```sh
+AMD64_TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build/install/bin
+PATH="$AMD64_TOOLBIN:$PATH" ARCH=amd64 ./tools/build-preflight.sh
+
+# Manual default-prefix smoke flow from a checkout/worktree:
+src=$PWD
+BUILD=/tmp/the-nux-amd64-default-build
+mkdir -p "$BUILD"
+(cd "$BUILD" && PATH="$AMD64_TOOLBIN:$PATH" "$src/configure" ARCH=amd64)
+(cd "$BUILD" && PATH="$AMD64_TOOLBIN:$PATH" make -j1)
+(cd "$BUILD/example" && PATH="$AMD64_TOOLBIN:$PATH" timeout --foreground 30s make qemu)
+
+# Checked-in amd64 harness, forced to the default freestanding prefixes:
+TOOLBIN="$AMD64_TOOLBIN" TOOLCHAIN=amd64-unknown-elf TOOLCHAIN32=i686-unknown-elf \
+  ./tools/qemu-smoke-amd64.sh
+```
+
+The local host-prefix smoke path remains a reviewed override: use a `TOOLBIN`
+that provides `i686-unknown-elf-gcc`, plus `TOOLCHAIN=x86_64-linux-gnu` and
 `TOOLCHAIN32=i686-unknown-elf`. That path passed preflight, configure, `make`,
 and bounded QEMU in the reviewed environment after the freestanding PIE fixes:
 commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e` adds compile-side
 `-fno-pie`, complementing commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0`'s
-link-side `-no-pie`. The checked-in `tools/qemu-smoke-amd64.sh` repeats the
+link-side `-no-pie`. The checked-in `tools/qemu-smoke-amd64.sh` defaults to the
 out-of-tree configure/build/QEMU flow for that override. It requires host
 `x86_64-linux-gnu-{gcc,ld,ar,objcopy}`, the 32-bit APXH compiler from
 `TOOLBIN`, `make`, and `qemu-system-x86_64` to be available in the runner. It
@@ -70,18 +91,62 @@ zero-valued `pnux_entry_pagefault` idle counter lines appear:
 ```sh
 TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin
 
-ARCH=amd64 ./tools/build-preflight.sh
-
 TOOLBIN="$TOOLBIN" ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf \
   ./tools/build-preflight.sh
 
 TOOLBIN="$TOOLBIN" ./tools/qemu-smoke-amd64.sh
 
-# Manual equivalent of the harness:
+# Manual equivalent of the override harness:
 PATH="$TOOLBIN:$PATH" ./configure ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf
 PATH="$TOOLBIN:$PATH" make
 (cd example && PATH="$TOOLBIN:$PATH" timeout --foreground 30s make qemu)
 ```
+
+### amd64 default toolchain policy
+
+The default `ARCH=amd64` path is intentionally a freestanding target-toolchain
+path, not a host-distro alias. A clean default runner must provide
+`amd64-unknown-elf-{gcc,ld,ar,objcopy}` on `PATH`, and amd64's multiboot APXH
+build must also resolve `i686-unknown-elf-gcc` (or an explicitly selected
+`TOOLCHAIN32` prefix). The reviewed local smoke path with
+`TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` is useful evidence for
+this container, but it must stay an explicit override because the host Linux
+prefix has different target defaults and previously needed reviewed
+freestanding `-no-pie`/`-fno-pie` fixes before the runtime smoke passed.
+
+Package/tool discovery found no Debian-packaged or preinstalled real amd64
+freestanding candidate under the default names (`amd64-unknown-elf`,
+`amd64-elf`, `x86_64-unknown-elf`, or `x86_64-elf`). Debian package metadata in
+this environment exposes the host `x86_64-linux-gnu` tools and packaged
+`riscv64-unknown-elf` tools, but not an amd64/x86_64 unknown-elf GCC/binutils
+pair. The README `gcc_toolchain_build` flow is therefore the durable default
+provisioning path for amd64 in this environment: build or reuse a true
+freestanding `amd64-unknown-elf` GCC/binutils pair, include the required
+`i686-unknown-elf` APXH compiler in the same runner/toolchain cache, prepend the
+cache's `install/bin` to `PATH`, and require
+`ARCH=amd64 ./tools/build-preflight.sh` to pass before default amd64
+configure/build/smoke jobs run.
+
+The current task cache is an external artifact, not repository content:
+
+```sh
+AMD64_TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build/install/bin
+```
+
+It was copied from a local README-built `gcc_toolchain_build` checkout at commit
+`eecef0929616a96517a83dab988a8429ad8c62d8` and provides GCC 14.2.0 plus
+Binutils 2.43.1 for both `amd64-unknown-elf` and `i686-unknown-elf`. With that
+bin directory on `PATH`, default `ARCH=amd64` preflight, configure, `make -j1`,
+and bounded QEMU multiboot smoke all pass in this container.
+
+Do not commit compiler artifacts, generated build trees, or wrapper aliases into
+this repository. A wrapper/prefix is acceptable only as an operator/CI mechanism
+around a true freestanding target toolchain (or around the explicit override
+smoke job); it should not make default `ARCH=amd64` silently resolve to the
+host Linux prefix. If the toolchain cache is absent, corrupted, or removed, the
+exact default-path blocker reverts to "missing `amd64-unknown-elf-*` plus
+default-PATH `i686-unknown-elf-gcc`" and the next action is to rebuild or
+restore the README `gcc_toolchain_build` artifact outside the repository.
 
 For riscv64, the current container has a verified Debian package path for the
 standard target tools and QEMU: `binutils-riscv64-unknown-elf` 2.44-3+7+b1,
@@ -206,7 +271,7 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### amd64
 
 - Top-level `configure.ac` selects `libhal_x86` + `libplt_acpi`.
-- APXH `configure` selects `multiboot efi` for `amd64`. The default `amd64-unknown-elf-*` tools are still absent in the reviewed local paths; the standardized local smoke path uses the host-prefixed `x86_64-linux-gnu-*` override plus the reviewed i686 `TOOLCHAIN32`. `tools/qemu-smoke-amd64.sh` captures that out-of-tree flow after the freestanding libec `-no-pie`/`-fno-pie` fixes. The bounded run reaches APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle counter markers before the expected timeout.
+- APXH `configure` selects `multiboot efi` for `amd64`. With the README-built task cache on `PATH`, the default `amd64-unknown-elf-*` tools and default-PATH `i686-unknown-elf-gcc` pass preflight, configure, `make`, and bounded multiboot QEMU. The standardized local smoke path still uses the host-prefixed `x86_64-linux-gnu-*` override plus the reviewed i686 `TOOLCHAIN32`, and `tools/qemu-smoke-amd64.sh` captures that out-of-tree override flow after the freestanding libec `-no-pie`/`-fno-pie` fixes. Both bounded runs reach APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle counter markers before the expected timeout. EFI-specific amd64 runtime coverage remains separate from the multiboot smoke.
 - `libhal_x86/amd64/exe.ld` uses the high-half base `0xffff800000000000`, 512 GiB physmap, 512 GiB KVA, 512 GiB KMEM, 256 MiB PFN cache, and 64 MiB framebuffer mapping.
 
 ### riscv64
@@ -312,7 +377,7 @@ Current integrated amd64/riscv64 follow-through evidence from tasks
 
 - `./configure --help` advertises `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64`.
 - QEMU: `/usr/bin/qemu-system-x86_64` and `/usr/bin/qemu-system-riscv64` are present and report QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`.
-- Default amd64 preflight/configure remains blocked by missing default `amd64-unknown-elf-*` tools and `i686-unknown-elf-gcc` on the default `PATH`.
+- Default amd64 preflight/configure/build/QEMU now passes when the README-built `gcc_toolchain_build` cache is prepended to `PATH`; the cache provides `amd64-unknown-elf-*` plus default-PATH `i686-unknown-elf-gcc`.
 - Worktree-local submodule initialization succeeded for the follow-through tasks; the current amd64 override path and riscv64 default-tool path are not blocked by submodule checkout or workspace capacity.
 - The installed host-prefixed `x86_64-linux-gnu-{gcc,ld,ar,objcopy}` tools plus `TOOLCHAIN32=i686-unknown-elf` from the stable external i386 `TOOLBIN` are sufficient for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` preflight, configure, and `make` to pass after commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0` added `-no-pie` to freestanding libec links and commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e` added compile-side `-fno-pie`.
 - The baseline amd64 QEMU failure was traced to host GCC default-PIE code generation in freestanding fixed-address objects. With the override path after commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`, the bounded amd64 QEMU smoke reaches APXH/NUX boot output, `IPI!`, `Hello from userspace, NUX!`, `SYSC0` through `SYSC6`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `User exited with error code: 42`, and repeated zero-valued `pnux_entry_pagefault` idle counter lines; timeout rc 124 is expected only after those success/idle markers.
@@ -321,6 +386,6 @@ Current integrated amd64/riscv64 follow-through evidence from tasks
 - The verified riscv64 runtime path is the explicit SBI/DTB subset build used by `tools/qemu-smoke-riscv64.sh`; bounded QEMU reaches OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA markers and repeated zero-valued `pnux_entry_pagefault` idle counters before the expected timeout.
 - Default full riscv64 top-level `make` uses the APXH `sbi` path; RISC-V EFI remains unverified and unselected by default after reproducing the old default EFI subdir selection failure: Debian `riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
 
-Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-riscv64-smoke-tooling-followthrough-impl/workspace/logs`.
+Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-riscv64-smoke-tooling-followthrough-impl/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-default-toolchain-readme-build-impl/workspace/logs`.
 
-The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. A task-local real `amd64-unknown-elf` build is not currently a low-risk substitute: fresh discovery found no `amd64-unknown-elf-*`, `amd64-elf-*`, `x86_64-unknown-elf-*`, or `x86_64-elf-*` candidates in PATH, task workspaces, or common bin roots; the `gcc_toolchain_build` source tree was not present locally; the stable i386 toolchain alone occupies about 2.0G; and the fresh implementer runner lacked `make`/host GCC/QEMU with `/home` already 98% used. The riscv64 path is runnable in the current container through the checked-in SBI/DTB smoke harness; remaining open items are future deliberate default amd64 target-toolchain provision if desired, CI policy for checked-in smoke harnesses, and a separate policy/toolchain decision for RISC-V APXH EFI if full default riscv64 `make` should become a verified path.
+The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. The later README toolchain follow-through provisioned a real default-prefix cache from a local `gcc_toolchain_build` checkout at commit `eecef0929616a96517a83dab988a8429ad8c62d8`, copied its `install/` artifact into `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build`, and verified default `ARCH=amd64` preflight, configure, `make -j1`, direct bounded `make qemu`, and `tools/qemu-smoke-amd64.sh` forced to `TOOLCHAIN=amd64-unknown-elf TOOLCHAIN32=i686-unknown-elf`. The override smoke path remains verified separately. The riscv64 path is runnable in the current container through the checked-in SBI/DTB smoke harness; remaining open items are CI/toolchain-cache policy for checked-in smoke harnesses, amd64 EFI-specific runtime verification, and a separate policy/toolchain decision before treating RISC-V APXH EFI as a verified path.

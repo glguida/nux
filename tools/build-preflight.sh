@@ -233,6 +233,12 @@ check_submodules
 if [ "$status" -eq 0 ]; then
     note "PASS: prerequisites are available for ARCH=$arch"
 else
+    if [ "$arch" = amd64 ] && [ -z "${TOOLCHAIN:-}" ]; then
+        note "amd64 default toolchain policy: default ARCH=amd64 requires real freestanding amd64-unknown-elf tools plus an i686-unknown-elf compiler for APXH multiboot"
+        note "amd64 default toolchain policy: build/provide the README gcc_toolchain_build install/bin on PATH, or another true freestanding target-toolchain cache"
+        note "amd64 default toolchain policy: do not satisfy the default by silently aliasing x86_64-linux-gnu; use TOOLCHAIN/TOOLCHAIN32 overrides only as an explicit reviewed local smoke path"
+        note "amd64 default toolchain policy: see docs/build-and-run.md#amd64-default-toolchain-policy"
+    fi
     note "FAIL: one or more prerequisites are missing or not ready for ARCH=$arch"
 fi
 exit "$status"

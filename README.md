@@ -33,20 +33,23 @@ Configured APXH boot paths are architecture-specific:
 - amd64: `multiboot` and `EFI`
 - riscv64: `SBI`
 
-The full default-toolchain runtime-smoke path in the current task environment
-is i386/multiboot. The local amd64 smoke path is the reviewed override: prepend
-the stable external i386 `TOOLBIN` and use
+The full default-toolchain runtime-smoke paths in the current task environment
+are i386/multiboot and amd64/multiboot when the README-built
+`gcc_toolchain_build` install bin directory is prepended to `PATH`. For amd64,
+that means real `amd64-unknown-elf-*` tools plus a default-PATH
+`i686-unknown-elf-gcc`. The local amd64 host-prefix smoke path remains an
+explicit reviewed override:
 `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf`. The
-checked-in `tools/qemu-smoke-amd64.sh` harness repeats that out-of-tree flow
-when the runner provides the host-prefixed x86_64 tools and `qemu-system-x86_64`;
-QEMU times out only after the expected success/idle markers because the demo
-does not shut the emulator down. The earlier amd64 failure caused by host
-GCC default-PIE code generation in freestanding fixed-address objects is fixed
-by commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`; default `ARCH=amd64`
-still needs default `amd64-unknown-elf-*` tools and a default-PATH
-`i686-unknown-elf-gcc`. The riscv64 default target-toolchain/QEMU path is
-the reviewed SBI/DTB path; RISC-V EFI platform-contract verification remains
-open; see [docs/hardware-support.md](docs/hardware-support.md).
+checked-in `tools/qemu-smoke-amd64.sh` harness repeats that out-of-tree override
+flow when the runner provides the host-prefixed x86_64 tools and
+`qemu-system-x86_64`; QEMU times out only after the expected success/idle
+markers because the demo does not shut the emulator down. The earlier amd64
+failure caused by host GCC default-PIE code generation in freestanding
+fixed-address objects is fixed by commit
+`8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`. The riscv64 default
+target-toolchain/QEMU path is the reviewed SBI/DTB path; RISC-V EFI
+platform-contract verification remains open; see
+[docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
 
