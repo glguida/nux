@@ -55,7 +55,7 @@ Files to update:
 - Common loader code only if a new APXH program-header behavior is needed (`apxh/src/main.c`, `apxh/src/elf.c`, `apxh/src/project.h`).
 - Machine-dependent boot code, following `apxh/multiboot`, `apxh/efi`, or `apxh/sbi`.
 
-Current APXH selection contract: the regenerated `apxh/configure` selects `multiboot` for `i386`, `multiboot efi` for `amd64`, and `sbi efi` for `riscv64`. Full non-i386 build/runtime validation still needs real target-toolchain paths; see `docs/backlog.md`.
+Current APXH selection contract: the regenerated `apxh/configure` selects `multiboot` for `i386`, `multiboot efi` for `amd64`, and `sbi efi` for `riscv64`. The amd64 multiboot override path has reviewed bounded QEMU coverage with `TOOLCHAIN=x86_64-linux-gnu` and `TOOLCHAIN32=i686-unknown-elf`, but default-toolchain amd64, amd64 EFI, and riscv64 build/runtime validation still need real target-toolchain paths; see `docs/backlog.md`.
 
 ## Add or extend a platform library
 

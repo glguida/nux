@@ -33,10 +33,17 @@ Configured APXH boot paths are architecture-specific:
 - amd64: `multiboot` and `EFI`
 - riscv64: `SBI` and `EFI`
 
-The full runtime-smoke path in the current task environment is i386/multiboot.
-The amd64 path has partial override build/QEMU coverage, but it still needs
-runtime page-fault debugging before it is a full smoke pass. The riscv64
-target-toolchain, QEMU, and EFI platform-contract verification remain open; see
+The full default-toolchain runtime-smoke path in the current task environment
+is i386/multiboot. The reviewed amd64 override path also passes a bounded
+example QEMU smoke when the stable external i386 `TOOLBIN` is prepended and
+`ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` is used;
+QEMU times out only after the expected success/idle markers because the demo
+does not shut the emulator down. The earlier amd64 failure caused by host
+GCC default-PIE code generation in freestanding fixed-address objects is fixed
+by commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`; default `ARCH=amd64`
+still needs default `amd64-unknown-elf-*` tools and a default-PATH
+`i686-unknown-elf-gcc`. The riscv64 target-toolchain, QEMU, and EFI
+platform-contract verification remain open; see
 [docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
