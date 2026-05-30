@@ -22,7 +22,7 @@ AC_NUXROOT_DIR([${nux_dir}])
 AC_LIBEC_DIR([${libec_dir}])
 
 
-AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
+AC_ARG_VAR([ARCH], [The architecture to compile for: i386, amd64, or riscv64])
 
 if test x"${ARCH}" == x ; then
    AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])

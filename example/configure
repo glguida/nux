@@ -1313,7 +1313,7 @@ Optional Packages:
   --with-libec            specify location of libec [default=<nuxdir>/libec]
 
 Some influential environment variables:
-  ARCH        The architecture to compile for: i386 or amd64
+  ARCH        The architecture to compile for: i386, amd64, or riscv64
   TOOLCHAIN   toolchain prefix [default: <ARCH>-elf]
 
 Use these variables to override the choices made by 'configure' or to help

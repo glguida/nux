@@ -97,13 +97,13 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### amd64
 
 - Top-level `configure.ac` selects `libhal_x86` + `libplt_acpi`.
-- APXH `configure` selects `multiboot efi` for `amd64`; this subdir selection has been script-verified with fake target-tool stubs, but full amd64 configure/build/QEMU verification still needs a real amd64 target-toolchain path.
+- APXH `configure` selects `multiboot efi` for `amd64`. In this container the default `amd64-unknown-elf-*` tools are still absent; using the installed `x86_64-linux-gnu-*` prefix plus the reviewed i686 `TOOLCHAIN32` lets configure complete, but the full build has not passed yet.
 - `libhal_x86/amd64/exe.ld` uses the high-half base `0xffff800000000000`, 512 GiB physmap, 512 GiB KVA, 512 GiB KMEM, 256 MiB PFN cache, and 64 MiB framebuffer mapping.
 
 ### riscv64
 
 - Top-level `configure.ac` selects `libhal_riscv` + `libplt_sbi`.
-- APXH `configure` selects `sbi efi` for `riscv64`; this subdir selection has been script-verified with fake target-tool stubs, but full riscv64 configure/build/QEMU verification still needs real RISC-V target tools and QEMU availability.
+- APXH `configure` selects `sbi efi` for `riscv64`; full riscv64 configure/build/QEMU verification still needs real RISC-V target tools and `qemu-system-riscv64` availability.
 - `libhal_riscv/exe.ld` uses the same high-half base, 512 GiB physmap/KVA/KMEM, 256 MiB PFN cache, and 32 MiB framebuffer mapping.
 - Treat RISC-V EFI as unverified: APXH EFI records `PLT_ACPI`, while `libplt_sbi` requires `PLT_DTB` (`apxh/efi/apxhefi/efi_md.c`, `libplt_sbi/sbi.c`).
 
@@ -195,4 +195,15 @@ In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `ma
 
 Representative logs for the original stable-path verification are `/tmp/the-nux-i386-qemu-doc-toolchain-configure-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-make-i386.txt`, `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-i386.txt`, and `/tmp/the-nux-i386-qemu-doc-toolchain-qemu-markers.txt`. The `uctxt_seta2()` fix repeated the flow from `/tmp/the-nux-uctxt-seta2-build-i386` after initializing submodules in its dedicated worktree; logs are `/tmp/the-nux-uctxt-seta2-configure-i386.txt`, `/tmp/the-nux-uctxt-seta2-make-i386.txt`, `/tmp/the-nux-uctxt-seta2-qemu-i386.txt`, and `/tmp/the-nux-uctxt-seta2-qemu-markers.txt`. The `uaddr_validrange()` fix repeated the same smoke path from `/tmp/the-nux-uaddr-validrange-build-i386`; logs are `/tmp/the-nux-uaddr-validrange-configure-i386.txt`, `/tmp/the-nux-uaddr-validrange-make-i386.txt`, `/tmp/the-nux-uaddr-validrange-qemu-i386.txt`, and `/tmp/the-nux-uaddr-validrange-qemu-markers.txt`. The KVA metadata-removal fix repeated it from `/tmp/the-nux-kva-vmap-free-build-i386`; logs are `/tmp/the-nux-kva-vmap-free-configure-i386.txt`, `/tmp/the-nux-kva-vmap-free-make-i386.txt`, `/tmp/the-nux-kva-vmap-free-qemu-i386.txt`, and `/tmp/the-nux-kva-vmap-free-qemu-markers.txt`.
 
-Remaining build/run gaps are not the old host compiler, i386 target-toolchain, i386 QEMU blocker, or i386 submodule initialization. The open items are amd64/riscv64 configure/build/QEMU smokes, broader submodule-dependent path verification outside i386, and the source fixes tracked in `docs/backlog.md`.
+A 2026-05-30 amd64/riscv64 capability probe in task `the-nux-amd64-riscv-smoke` found:
+
+- `./configure --help` advertises `ARCH=i386`, `ARCH=amd64`, and `ARCH=riscv64`.
+- QEMU: `/usr/bin/qemu-system-x86_64` is present and reports QEMU `10.0.8 (Debian 1:10.0.8+ds-0+deb13u1+b2)`; `qemu-system-riscv64` is not on `PATH`.
+- Default amd64 configure is still blocked at the target-toolchain probe: `amd64-unknown-elf-gcc not found`.
+- The installed host-prefixed `x86_64-linux-gnu-{gcc,ld,ar,objcopy}` tools plus `TOOLCHAIN32=i686-unknown-elf` from the stable i386 `TOOLBIN` are sufficient for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` configure to complete through the top-level, APXH, and example sub-configures.
+- The follow-on amd64 build did not reach QEMU. It stopped while building submodule-dependent `tools/libbfd` and APXH EFI pieces because the dedicated worktree submodules were not fully checked out; attempting `git submodule update --init --recursive` in that worktree then failed with `No space left on device` while checking out `contrib/binutils`.
+- Default riscv64 configure is blocked at `riscv64-unknown-elf-gcc not found`; no project-local `riscv64-unknown-elf-*`, `riscv64-elf-*`, or `riscv64-linux-gnu-*` toolchain and no `qemu-system-riscv64` were found.
+
+The job evidence logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-riscv-smoke-capability-impl/workspace/evidence/`, including `configure-amd64-default.log`, `configure-amd64-x86_64-linux-gnu.log`, `make-amd64-x86_64-linux-gnu.log`, `configure-riscv64-default.log`, `tool-discovery.log`, `state-toolchain-discovery.log`, and `submodule-update.log`.
+
+Remaining build/run gaps are not the old host compiler, i386 target-toolchain, i386 QEMU blocker, or i386 submodule initialization. The open items are a real amd64 target-toolchain or a reviewed decision to support the `x86_64-linux-gnu` prefix for amd64, enough free workspace/submodule checkout capacity to complete the amd64 build, `qemu-system-riscv64` plus a RISC-V target toolchain for riscv64, and the source fixes tracked in `docs/backlog.md`.
