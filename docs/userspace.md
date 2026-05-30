@@ -37,7 +37,7 @@ A NUX kernel implements the hooks declared in `include/nux/nux.h`:
 
 `libnux/entry.c` validates whether the interrupted frame is user, idle, or invalid, panics on unexpected kernel faults, calls the kernel hook, and converts the returned `uctxt_t` back to a HAL frame or idle state.
 
-This is the current return-based contract: `include/nux/nux.h` declares every `entry_*` hook as returning `uctxt_t *`, `libnux/entry.c` stores that return value, and `libnux/uctxt.c` converts it with `uctxt_frame()`. A task-log/base-checkout roadmap note for the basic Murgia/MH port proposes changing entry functions so they mutate the input frame/return data instead of returning a replacement frame/context. That proposal is not implemented; kernels and examples must treat the tracked headers as authoritative until the API is changed.
+This is the current return-based contract: `include/nux/nux.h` declares every `entry_*` hook as returning `uctxt_t *`, `libnux/entry.c` stores that return value, and `libnux/uctxt.c` converts it with `uctxt_frame()`. The generic NUX contract audit treats historical mutate-input-frame wording as conditional future design space, not an implementation mandate. Kernels and examples must treat the tracked headers as authoritative unless a future reviewed generic NUX problem changes the API (see `docs/nux-pte-entry-contracts.md`).
 
 ## Syscall ABI wrappers
 
@@ -71,7 +71,7 @@ The example user program defines `putchar` as syscall `4096` and `exit` as sysca
 
 - There is no central syscall-number registry beyond the example kernel/user pair; Murgia currently depends on the NUX `entry_sysc` handler arity remaining explicit.
 - There is no scheduler/process abstraction in the current public API; event hooks return the next user context or `UCTXT_IDLE`.
-- The entry-hook contract is return-based today; the task-log Murgia/MH roadmap proposes input-frame mutation instead, but no tracked implementation exists yet.
+- The entry-hook contract is return-based today; `docs/nux-pte-entry-contracts.md` audits a possible mutate-input-frame/action model but recommends no ABI change unless a source-backed generic NUX problem justifies it.
 - i386 TLS is explicitly ignored in `hal_frame_settls()` (`libhal_x86/i386/sys_entry.c`).
 - The example initializes only a boot-time user context; broader lifecycle rules for multiple user address spaces are left to kernels using NUX.
 - `uctxt_seta2()` now delegates to `hal_frame_seta2()` in `libnux/uctxt.c`; the example kernel/user smoke checks the setter by writing and reading back a known third-argument-register value across a syscall return.

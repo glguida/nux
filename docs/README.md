@@ -13,6 +13,7 @@ This `docs/` tree is the first source-backed documentation baseline for the curr
 - [Userspace](userspace.md): boot-time user payloads, syscall wrappers, user contexts, page-fault hooks, and example code.
 - [Murgia integration](murgia-integration.md): traceable cross-project requirements, including the current task-log-backed Murgia/MH roadmap, corrected HAL/platform boundary, and follow-up handoff items.
 - [Murgia hardware boundary roadmap](murgia-substrate-roadmap.md): source-backed matrix of NUX capabilities, gaps, and the rule that Murgia modern-hardware/AHCI/filesystem work must not depend on NUX exporting ACPI tables or a public platform-fact inventory.
+- [NUX PTE and entry-hook contract audit](nux-pte-entry-contracts.md): generic source-backed audit of the current HAL leaf-PTE and return-based entry-hook contracts, with Murgia/MH and ggml-on-NUX-style workloads treated as downstream pressure tests rather than implementation mandates.
 - [Backlog](backlog.md): prioritized bugs, TODOs, documentation gaps, hardware gaps, and candidate small implementation slices.
 
 ## Evidence policy

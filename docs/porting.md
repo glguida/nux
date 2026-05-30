@@ -27,10 +27,10 @@ Implement the HAL contract from `include/nux/hal.h`:
 - CPU I/O/trap/cycles/idle/halt/TLB operations.
 - User-access enable/disable for safe kernel copies from user memory.
 - Physical and virtual memory descriptions from APXH bootinfo.
-- Current leaf PTE APIs: `hal_kmap_getl1p`, `hal_umap_getl1p`, `hal_l1e_*`, and UMAP load/init/free/next. A task-log roadmap for basic Murgia/MH support proposes `ROOTPTE`/`ROOTPTEP` and `LEAFPTE`/`LEAFPTEP` abstractions; implement new ports against the tracked `hal_l1p_t`/`hal_l1e_t` contract until that API is designed and reviewed.
+- Current leaf PTE APIs: `hal_kmap_getl1p`, `hal_umap_getl1p`, `hal_l1e_*`, and UMAP load/init/free/next. The generic PTE audit treats historical `ROOTPTE`/`LEAFPTE` wording as uncertain, not an implementation mandate; implement new ports against the tracked `hal_l1p_t`/`hal_l1e_t` contract unless a future reviewed generic NUX problem changes that API (see `docs/nux-pte-entry-contracts.md`).
 - PCPU init/add/enter/startaddr, per-CPU data, and secondary CPU entry.
 - `struct hal_frame` plus all frame getters/setters and printing.
-- Trap/syscall/page-fault/IRQ dispatch into `hal_entry_*`. Current NUX entry hooks return a `uctxt_t *`; a Murgia/MH roadmap note proposes mutating the input frame/return data instead, but that is not implemented in the tracked API.
+- Trap/syscall/page-fault/IRQ dispatch into `hal_entry_*`. Current NUX entry hooks return a `uctxt_t *`; the generic entry-hook audit treats the mutate-input-frame idea as conditional future design space, not a tracked API change (see `docs/nux-pte-entry-contracts.md`).
 - Panic output.
 
 Evidence examples:
