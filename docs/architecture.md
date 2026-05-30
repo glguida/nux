@@ -18,8 +18,8 @@ The top-level `Makefile.in` builds `libfdt`, `apxh`, the selected HAL/PLT, `libn
 
 1. **APXH starts first.** APXH is an ELF loader with machine-dependent entry code for multiboot, EFI, and SBI/DTB boot paths (`apxh/multiboot/*`, `apxh/efi/*`, `apxh/sbi/*`).
 2. **APXH loads payloads.** Common APXH code loads kernel and optional user ELF payloads, interprets APXH-specific program-header types, builds page tables, and writes boot data (`apxh/src/main.c`, `apxh/src/elf.c`, `apxh/src/project.h`).
-3. **APXH passes boot contracts.** Boot data uses `struct apxh_bootinfo`, `struct apxh_region`, `struct apxh_stree`, and `struct apxh_pltdesc` from `include/nux/apxh.h`. Linker scripts request those areas with APXH program-header IDs such as `PHT_APXH_INFO`, `PHT_APXH_STREE`, `PHT_APXH_FRAMEBUF`, and `PHT_APXH_REGIONS` (`libhal_x86/*/exe.ld`, `libhal_riscv/exe.ld`).
-4. **HAL takes over.** The selected HAL reads APXH boot information, validates the S-tree allocator bitmap, initializes console/framebuffer state, exposes memory ranges, and sets architecture-specific entry/paging/CPU functions (`libhal_x86/x86.c`, `libhal_riscv/riscv.c`).
+3. **APXH passes boot contracts.** Boot data uses `struct apxh_bootinfo`, `struct apxh_region`, `struct apxh_stree`, and `struct apxh_pltdesc` from `include/nux/apxh.h`. The platform descriptor contains a `type` such as `PLT_ACPI` or `PLT_DTB` plus `pltptr`; it is an APXH-to-HAL/PLT handoff, not a raw ACPI/DTB export API. Linker scripts request those areas with APXH program-header IDs such as `PHT_APXH_INFO`, `PHT_APXH_STREE`, `PHT_APXH_FRAMEBUF`, and `PHT_APXH_REGIONS` (`libhal_x86/*/exe.ld`, `libhal_riscv/exe.ld`).
+4. **HAL takes over.** The selected HAL reads APXH boot information, validates the S-tree allocator bitmap, initializes console/framebuffer state, exposes memory ranges, and sets architecture-specific entry/paging/CPU functions (`libhal_x86/x86.c`, `libhal_riscv/riscv.c`). The selected platform library consumes the typed platform pointer internally for CPUs, interrupts, timers, and basic platform setup.
 5. **`libnux` constructor initializes the runtime.** `_nux_sysinit()` initializes PFN allocation, KMEM, KVA, PFN cache, platform devices, CPU state, secondary CPUs, and then marks NUX running (`libnux/init.c`).
 6. **Kernel code runs.** The user kernel's `main()` runs after HAL/PLT initialization. Secondary CPUs run `main_ap()`. Events call `entry_sysc`, `entry_pf`, `entry_ex`, `entry_alarm`, `entry_ipi`, and `entry_irq` through `libnux/entry.c`.
 
@@ -44,8 +44,8 @@ The HAL abstracts CPU instructions, interrupt frames, page-table leaf entries, T
 
 The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and platform interrupt dispatch (`include/nux/plt.h`).
 
-- `libplt_acpi` expects APXH to provide a `PLT_ACPI` descriptor. It scans ACPI tables, MADT, LAPIC, IOAPIC, and HPET (`libplt_acpi/plt.c`, `acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`). It does not currently expose PCIe/MCFG discovery, DMAR/IVRS IOMMU tables, or DMA-remapping primitives.
-- `libplt_sbi` expects `PLT_DTB`. It parses `/cpus`, `timebase-frequency`, and PLIC information from a DTB, implements SBI timer calls, and uses software interrupts plus `libnux` NMI emulation (`libplt_sbi/sbi.c`, `libnux/nmiemul.c`). Several SBI/PLIC paths are still TODO.
+- `libplt_acpi` expects APXH to provide a `PLT_ACPI` descriptor. It scans only the ACPI data it needs internally for MADT, LAPIC, IOAPIC, and HPET setup (`libplt_acpi/plt.c`, `acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`). It does not export raw ACPI tables, an ACPI table inventory, PCIe/MCFG records, DMAR/IVRS IOMMU records, or a public platform-fact substrate.
+- `libplt_sbi` expects `PLT_DTB`. It parses the DTB data it needs internally for `/cpus`, `timebase-frequency`, and PLIC information, implements SBI timer calls, and uses software interrupts plus `libnux` NMI emulation (`libplt_sbi/sbi.c`, `libnux/nmiemul.c`). Several SBI/PLIC paths are still TODO.
 
 ### `libnux`
 
@@ -79,5 +79,5 @@ The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and 
 - RISC-V platform support has explicit TODOs for secondary CPU start, platform CPU enter, external IRQs, IRQ enable/disable/type/max, and EOI (`libhal_riscv/riscv.c`, `libplt_sbi/sbi.c`).
 - x86 user-access hardening has TODO placeholders for SMEP in `libhal_x86/x86.c`.
 - Basic Murgia/MH porting has task-log roadmap dependencies for HAL root/leaf PTE abstractions and an input-frame-mutating entry-hook contract; these are not tracked-source implementations yet.
-- Murgia/MH IOMMU support has a separate transparency requirement: future NUX substrate work should expose device/IOMMU facts and DMA-remapping primitives without forcing a different Murgia user-facing device/export API on IOMMU-present systems.
+- Murgia/MH IOMMU support has a separate transparency requirement: Murgia should keep the same user-facing device/export API on IOMMU-present and no-IOMMU systems, while ACPI/DMAR/IVRS parsing and device policy remain above the NUX typed-platform-pointer boundary. Future NUX work must not expose raw ACPI tables or a public ACPI/platform fact inventory for that policy.
 - APXH boot-path verification is still incomplete beyond the reviewed i386/multiboot path: amd64 multiboot/EFI and riscv64 SBI/EFI need real target-toolchain/runtime verification, and the RISC-V EFI platform contract remains unresolved; see [hardware support](hardware-support.md) and [backlog](backlog.md).

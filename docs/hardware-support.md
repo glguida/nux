@@ -1,6 +1,6 @@
 # Hardware support
 
-This matrix distinguishes configured support, source-level support, and gaps found in tracked files. For the Murgia modern-hardware/AHCI/filesystem substrate inventory and prioritized next slices, see [`murgia-substrate-roadmap.md`](murgia-substrate-roadmap.md).
+This matrix distinguishes configured support, source-level support, and gaps found in tracked files. For the Murgia modern-hardware/AHCI/filesystem boundary and gap inventory, see [`murgia-substrate-roadmap.md`](murgia-substrate-roadmap.md).
 
 ## Architecture and boot matrix
 
@@ -18,12 +18,12 @@ Current implemented areas:
 - i386 PAE paging and a 3 GiB user UMAP: `libhal_x86/i386/pae32.c`, `libhal_x86/include/nux/hal_config_i386.h`.
 - amd64 4-level paging and 42-bit user UMAP by default: `libhal_x86/amd64/pae64.c`, `libhal_x86/include/nux/hal_config_amd64.h`.
 - i386 and amd64 secondary CPU bootstrap using LAPIC INIT/SIPI through `libplt_acpi/lapic.c` and HAL trampoline code in `libhal_x86/i386/i386.c`, `libhal_x86/amd64/amd64.c`.
-- ACPI table loading, MADT scan, LAPIC, IOAPIC, GSI routing, and HPET timer: `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`.
+- Internal ACPI table loading for MADT/HPET setup, LAPIC, IOAPIC, GSI routing, and HPET timer: `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`. This consumes the `PLT_ACPI` platform descriptor inside `libplt_acpi`; it is not a raw ACPI table export.
 
 Known gaps:
 
 - x2APIC, LSAPIC, IOSAPIC entries are explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`).
-- No tracked ACPI MCFG/PCIe discovery, PCI bus enumeration, MSI/MSI-X, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness was found in the current tracked source/doc search. The Murgia/MH modern-storage direction is a future substrate gap, not current NUX hardware support.
+- No tracked ACPI MCFG/PCIe discovery, PCI bus enumeration, MSI/MSI-X, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness was found in the current tracked source/doc search. Murgia/kernel/userspace owns that ACPI/device policy above the existing NUX typed-platform-pointer boundary; do not treat it as a future NUX ACPI export or platform-fact inventory.
 - x86 `hal_useraccess_start/end` have TODO placeholders for SMEP handling (`libhal_x86/x86.c`).
 - i386 TLS setup is explicitly ignored in `hal_frame_settls` (`libhal_x86/i386/sys_entry.c`).
 - EFI support still needs full architecture-specific configure/build/runtime verification. i386 EFI source/settings are present but not selected by APXH configure; non-i386 target-toolchain paths and runtime smoke tests remain open. APXH subdir selection is no longer blocked by the malformed generated configure case.

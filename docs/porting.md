@@ -8,7 +8,7 @@ NUX separates three concerns that are easy to mix up:
 
 1. **Architecture/HAL support**: CPU instructions, page tables, interrupt frames, entry/return, TLB operations, and virtual-memory layout (`include/nux/hal.h`, `libhal_x86/*`, `libhal_riscv/*`).
 2. **Boot/APXH support**: firmware or boot-protocol entry, payload discovery, memory map collection, page-table creation, and `apxh_bootinfo` production (`apxh/*`, `include/nux/apxh.h`).
-3. **Platform support**: hardware discovery and runtime device model for CPUs, interrupts, IPIs/NMIs, timers, and IRQ EOI (`include/nux/plt.h`, `libplt_acpi/*`, `libplt_sbi/*`).
+3. **Platform support**: hardware discovery and runtime device model for CPUs, interrupts, IPIs/NMIs, timers, and IRQ EOI (`include/nux/plt.h`, `libplt_acpi/*`, `libplt_sbi/*`). APXH passes a typed platform descriptor (`struct apxh_pltdesc` with `type` and `pltptr`) to this layer; the descriptor is consumed internally and must not become a raw ACPI/DTB export API.
 
 A new board may only need a platform extension; a new CPU ISA needs all three plus userspace syscall wrappers.
 
@@ -42,7 +42,7 @@ Evidence examples:
 
 APXH must eventually provide the common APXH contract consumed by HAL:
 
-- `struct apxh_bootinfo` with magic, max PFNs, region count, optional user entry, framebuffer, platform descriptor, and TLS info (`include/nux/apxh.h`).
+- `struct apxh_bootinfo` with magic, max PFNs, region count, optional user entry, framebuffer, platform descriptor, and TLS info (`include/nux/apxh.h`). The embedded `struct apxh_pltdesc` carries only a typed pointer such as `PLT_ACPI`/RSDP or `PLT_DTB`/DTB for the selected HAL/PLT to consume internally.
 - A memory-region list (`PHT_APXH_REGIONS`).
 - An S-tree allocation bitmap (`PHT_APXH_STREE`).
 - Optional framebuffer (`PHT_APXH_FRAMEBUF`).
@@ -77,7 +77,7 @@ Evidence examples:
 
 Prefer platform-specific additions behind `include/nux/plt.h` or a new public header if kernels need to use it. For example, timer support is abstracted by `plt_tmr_*` and exported as `timer_*` from `include/nux/nux.h`/`libnux/time.c`. IRQ routing belongs in the PLT layer, not in `libnux`.
 
-For future IOMMU or PCIe work, keep the Murgia/MH transparency constraint in mind: NUX should expose substrate facts and DMA-remapping primitives for kernel/Murgia internals, but an IOMMU-present system should not require a different Murgia user-facing `hwdev`/`sys_export`/`dexport` device/export API than the no-IOMMU fallback path.
+For future IOMMU or PCIe work, keep the Murgia/MH transparency constraint in mind: Murgia should keep the same user-facing `hwdev`/`sys_export`/`dexport` device/export API on IOMMU-present and no-IOMMU systems, and Murgia/kernel/userspace owns ACPI parsing, PCIe/MCFG interpretation, IOMMU/device policy, AHCI, and filesystem policy above the NUX platform-pointer boundary. NUX platform additions may consume the typed APXH descriptor internally, but they must not export raw ACPI tables, table inventories, MCFG/ECAM records, or a public ACPI fact substrate.
 
 ## Update examples and documentation
 

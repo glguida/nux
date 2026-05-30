@@ -33,7 +33,7 @@ The HAL linker scripts request these areas in `libhal_x86/i386/exe.ld`, `libhal_
 
 The tracked x86 HAL adds two pinned non-RAM memory regions on top of the APXH-provided boot regions (`libhal_x86/x86.c`): PFN 0 length 1 and PFN `0xa0` length 96, both typed `APXH_REGION_MMIO` from `include/nux/apxh.h`. `hal_physmem_numregions()` includes those pinned entries, `hal_physmem_region()` returns them after the bootloader-provided region list, and `x86_init()` clears pinned non-RAM PFNs from the S-tree allocator.
 
-This is confirmed x86 HAL behavior that Murgia's ACPI/MMIO discovery handoff depends on. Treat it as an x86 NUX/HAL contract to preserve or deliberately change with a tracked fix; it is not evidence of a generic RISC-V memory-region contract.
+This is confirmed x86 HAL behavior relevant to Murgia's MMIO mapping assumptions. Treat it as an x86 NUX/HAL contract to preserve or deliberately change with a tracked fix; it is not an exported ACPI table handoff and it is not evidence of a generic RISC-V memory-region contract.
 
 ## PFN allocator
 
