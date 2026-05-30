@@ -148,6 +148,68 @@ exact default-path blocker reverts to "missing `amd64-unknown-elf-*` plus
 default-PATH `i686-unknown-elf-gcc`" and the next action is to rebuild or
 restore the README `gcc_toolchain_build` artifact outside the repository.
 
+### amd64 EFI APXH build and runtime smoke
+
+`ARCH=amd64` APXH configure selects both `multiboot` and `efi`, but the
+standard example `make qemu` target is still the multiboot path. The EFI loader
+is built under `apxh/efi` through `contrib/gnu-efi`: `apxh/efi/Makefile.in`
+maps amd64 to gnu-efi `ARCH=x86_64`, objcopies the linked `apxh.so` as an
+`efi-app-x86_64`, and produces `apxh.efi`. At runtime `apxh.efi` loads
+`kernel.elf` and optional `user.elf` from the EFI volume before entering the
+normal APXH/NUX path.
+
+The amd64 EFI build path is verified in this task environment with the same
+README-built default cache used for amd64 multiboot:
+
+```sh
+AMD64_TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build/install/bin
+src=$PWD
+build=/tmp/the-nux-amd64-efi-build
+mkdir -p "$build"
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" "$src/configure" ARCH=amd64)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C apxh/efi all)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C libhal_x86 all)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C libplt_acpi all)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C libnux all)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C libnux_user all)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C example/kern all)
+(cd "$build" && PATH="$AMD64_TOOLBIN:$PATH" make -j1 -C example/user all)
+```
+
+Expected artifacts are `apxh/efi/apxh.efi`, `example/kern/example`, and
+`example/user/exuser`. In the reviewed container, `file(1)` reports
+`apxh.efi` as a `PE32+ executable for EFI (application), x86-64`, while the
+kernel and user payloads are static x86-64 ELF executables. The current APXH
+EFI makefile builds gnu-efi objects under the source submodule
+`contrib/gnu-efi/<ARCH>`; use a disposable worktree for verification and do not
+commit generated submodule dirt.
+
+EFI runtime smoke also needs an x86_64 OVMF/edk2 firmware image for QEMU. This
+container has `/usr/bin/qemu-system-x86_64` (`10.0.8`), but no OVMF/edk2 x86_64
+firmware was found under `/usr/share` or `/usr/lib`, `dpkg-query` reports
+`ovmf` as not installed, and `mformat`/`mcopy`/`mkfs.vfat` are absent. The
+checked-in EFI harness uses QEMU's `fat:rw:` directory backend, so the missing
+FAT helpers are not the first runtime blocker; the missing firmware is.
+
+Use the conservative harness once firmware is available:
+
+```sh
+TOOLBIN="$AMD64_TOOLBIN" ./tools/qemu-smoke-amd64-efi.sh
+
+# Or name non-standard firmware explicitly:
+TOOLBIN="$AMD64_TOOLBIN" \
+  OVMF_CODE=/path/to/OVMF_CODE.fd \
+  OVMF_VARS=/path/to/OVMF_VARS.fd \
+  ./tools/qemu-smoke-amd64-efi.sh
+```
+
+The harness stages `EFI/BOOT/BOOTX64.EFI`, `kernel.elf`, and `user.elf` in an
+out-of-tree build directory and accepts timeout rc 124 only after the same
+meaningful amd64 APXH/NUX/userspace serial markers as the multiboot smoke. In
+this container it fails early with `OVMF/edk2 x86_64 firmware not found`; do
+not claim amd64 EFI runtime coverage until an operator provides OVMF/edk2
+firmware and the harness reaches the required markers.
+
 For riscv64, the current container has a verified Debian package path for the
 standard target tools and QEMU: `binutils-riscv64-unknown-elf` 2.44-3+7+b1,
 `gcc-riscv64-unknown-elf` 14.2.0+19, and `qemu-system-misc`

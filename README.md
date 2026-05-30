@@ -47,7 +47,10 @@ markers because the demo does not shut the emulator down. The earlier amd64
 failure caused by host GCC default-PIE code generation in freestanding
 fixed-address objects is fixed by commit
 `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`. The riscv64 default
-target-toolchain/QEMU path is the reviewed SBI/DTB path; RISC-V EFI
+target-toolchain/QEMU path is the reviewed SBI/DTB path. The amd64 EFI APXH
+loader builds with the same README-built default amd64 cache, but EFI runtime
+smoke requires local x86_64 OVMF/edk2 firmware; this container currently lacks
+those assets, so only the EFI build path is verified here. RISC-V EFI
 platform-contract verification remains open; see
 [docs/hardware-support.md](docs/hardware-support.md).
 
