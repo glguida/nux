@@ -125,10 +125,12 @@ The riscv64 QEMU smoke treats timeout rc 124 as success only after the serial
 log has already reached OpenSBI/APXH/NUX/userspace markers, `SYSC0` through
 `SYSC6`, `UCTXT_SETA2`, `UADDR_VALIDRANGE`, `KVA_ALLOC_FREE`,
 `User exited with error code: 42`, and repeated zero-valued
-`pnux_entry_pagefault` idle counters. The full default top-level `make` is still
-not this verified path: APXH selects `sbi efi` for riscv64, and Debian
-`riscv64-unknown-elf-ld` currently fails the RISC-V EFI link with
-`riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
+`pnux_entry_pagefault` idle counters. The full default top-level `make` now
+uses the same APXH `sbi` selection for riscv64. RISC-V EFI source remains
+present but is intentionally not in the default APXH subdir list because its
+platform contract is unresolved; manually building `apxh/efi` with Debian
+`riscv64-unknown-elf-ld` still fails with `-shared not supported` while linking
+`apxh.so`.
 
 ## Regenerating configure scripts
 
@@ -210,8 +212,8 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### riscv64
 
 - Top-level `configure.ac` selects `libhal_riscv` + `libplt_sbi`.
-- APXH `configure` selects `sbi efi` for `riscv64`. The verified runtime path is SBI/DTB: build `libfdt`, `apxh/sbi`, `libhal_riscv`, `libplt_sbi`, `libnux`, `libnux_user`, `tools`, and `example example_qemu`, then run `qemu-system-riscv64 -M virt` through the generated `example` `make qemu` target.
-- Full default top-level `make` is still limited by the RISC-V APXH EFI target: Debian `riscv64-unknown-elf-ld` reports `-shared not supported` while linking `apxh.so`. Do not treat RISC-V EFI or the full APXH `sbi efi` build as verified by the SBI smoke.
+- APXH `configure` selects `sbi` for `riscv64`. The verified runtime path is SBI/DTB: build `libfdt`, `apxh/sbi`, `libhal_riscv`, `libplt_sbi`, `libnux`, `libnux_user`, `tools`, and `example example_qemu`, then run `qemu-system-riscv64 -M virt` through the generated `example` `make qemu` target. The default top-level `make` uses this APXH selection.
+- RISC-V EFI source remains under `apxh/efi`, but it is not in the default riscv64 APXH subdir list. Debian `riscv64-unknown-elf-ld` reports `-shared not supported` while linking `apxh.so` if that EFI target is built manually. Do not treat RISC-V EFI as verified by the SBI smoke.
 - `libhal_riscv/exe.ld` uses the same high-half base, 512 GiB physmap/KVA/KMEM, 256 MiB PFN cache, and 32 MiB framebuffer mapping.
 - Treat RISC-V EFI as unverified: APXH EFI records `PLT_ACPI`, while `libplt_sbi` requires `PLT_DTB` (`apxh/efi/apxhefi/efi_md.c`, `libplt_sbi/sbi.c`).
 
@@ -317,7 +319,7 @@ Current integrated amd64/riscv64 follow-through evidence from tasks
 - i386 smoke remains passing with the stable external i386 `TOOLBIN`; the follow-up verification recorded `tools/qemu-smoke-i386.sh` rc 0.
 - riscv64 default target tools are present from the bounded Debian package path: `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `gcc-riscv64-unknown-elf` 14.2.0+19, and `qemu-system-misc` 1:10.0.8+ds-0+deb13u1+b2, with required dependencies `opensbi` 1.6-1, `qemu-system-riscv`, and `qemu-system-s390x`. With initialized submodules, `ARCH=riscv64 ./tools/build-preflight.sh` passes.
 - The verified riscv64 runtime path is the explicit SBI/DTB subset build used by `tools/qemu-smoke-riscv64.sh`; bounded QEMU reaches OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA markers and repeated zero-valued `pnux_entry_pagefault` idle counters before the expected timeout.
-- Default full riscv64 top-level `make` is still not verified because APXH selects both `sbi` and `efi`; Debian `riscv64-unknown-elf-ld` fails the RISC-V APXH EFI link with `riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
+- Default full riscv64 top-level `make` uses the APXH `sbi` path; RISC-V EFI remains unverified and unselected by default after reproducing the old default EFI subdir selection failure: Debian `riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
 
 Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-riscv64-smoke-tooling-followthrough-impl/workspace/logs`.
 

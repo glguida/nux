@@ -2296,7 +2296,7 @@ case $machine in #(
   amd64) :
     apxh_subdirs="multiboot efi" ;; #(
   riscv64) :
-    apxh_subdirs="sbi efi" ;; #(
+    apxh_subdirs=sbi ;; #(
   *) :
     as_fn_error $? "Supported Architectures: i386, amd64, riscv64" "$LINENO" 5 ;; #(
   *) :

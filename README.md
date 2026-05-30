@@ -31,7 +31,7 @@ NUX kernels are booted by APXH (uppercase for αρχη, or _beginning_ in ancien
 Configured APXH boot paths are architecture-specific:
 - i386: `multiboot`
 - amd64: `multiboot` and `EFI`
-- riscv64: `SBI` and `EFI`
+- riscv64: `SBI`
 
 The full default-toolchain runtime-smoke path in the current task environment
 is i386/multiboot. The local amd64 smoke path is the reviewed override: prepend
@@ -44,9 +44,9 @@ does not shut the emulator down. The earlier amd64 failure caused by host
 GCC default-PIE code generation in freestanding fixed-address objects is fixed
 by commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`; default `ARCH=amd64`
 still needs default `amd64-unknown-elf-*` tools and a default-PATH
-`i686-unknown-elf-gcc`. The riscv64 target-toolchain, QEMU, and EFI
-platform-contract verification remain open; see
-[docs/hardware-support.md](docs/hardware-support.md).
+`i686-unknown-elf-gcc`. The riscv64 default target-toolchain/QEMU path is
+the reviewed SBI/DTB path; RISC-V EFI platform-contract verification remains
+open; see [docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
 
@@ -124,12 +124,14 @@ or
 
 **Note for RISCV64:**
 
-For `ARCH=riscv64`, APXH configure currently selects both `sbi` and `efi`.
-The SBI/DTB path is the coherent configured runtime path. RISC-V EFI source
-exists and uses `gnu-efi`, but its platform-descriptor contract and full
-build/runtime flow are unverified. If a non-`gcc_toolchain_build` toolchain
-fails while building EFI, treat that as an open portability/configure-policy
-issue rather than hand-editing generated build files; see
+For `ARCH=riscv64`, APXH configure selects `sbi` by default. The SBI/DTB
+path is the coherent configured runtime path and is the path used by the
+default top-level `make`. RISC-V EFI source exists under `apxh/efi` and uses
+`gnu-efi`, but it is not selected by default because its platform-descriptor
+contract and full build/runtime flow are unverified. Debian
+`riscv64-unknown-elf-ld` reports `-shared not supported` when manually building
+that EFI target; treat EFI as a separate portability/configure-policy decision
+rather than hand-editing generated build files. See
 [docs/hardware-support.md](docs/hardware-support.md) and
 [docs/backlog.md](docs/backlog.md).
 

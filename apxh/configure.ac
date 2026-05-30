@@ -63,7 +63,7 @@ machine=${ARCH}
 AS_CASE([$machine],
 	[i386], [apxh_subdirs=multiboot],
 	[amd64], [apxh_subdirs="multiboot efi"],
-	[riscv64], [apxh_subdirs="sbi efi"],
+	[riscv64], [apxh_subdirs=sbi],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])
 
 

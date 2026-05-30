@@ -1,8 +1,8 @@
 #!/bin/sh
 # Run the reviewed riscv64 SBI/DTB QEMU serial-marker smoke test from an
-# out-of-tree build. This intentionally builds only the verified SBI runtime
-# subset and does not run the full top-level make, which also selects the
-# currently unverified RISC-V APXH EFI target.
+# out-of-tree build. This intentionally builds the verified SBI runtime
+# subset; the full top-level make now uses the same APXH SBI selection for
+# riscv64, while RISC-V APXH EFI remains unverified and unselected by default.
 #
 # Environment:
 #   BUILD/NUX_BUILD  Optional out-of-tree build directory. Defaults under /tmp.
