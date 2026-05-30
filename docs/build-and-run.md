@@ -6,7 +6,11 @@ This page records the build flow supported by the tracked files and what was act
 
 The build is not self-contained. The tracked files show these requirements:
 
-- A host C compiler and normal build tools. Top-level `configure` runs `AC_PROG_CC` before checking target tools (`configure.ac`).
+- A host C compiler with C library development headers, GNU Make, and helper
+  tools used by bundled host utilities. Top-level `configure` runs
+  `AC_PROG_CC` before checking target tools (`configure.ac`); the current
+  `tools/libbfd` build also needs `file(1)` and `makeinfo`/Texinfo while
+  building the checked-in Binutils BFD submodule.
 - Cross binutils/GCC prefixes for the selected target:
   - `i686-unknown-elf-*` for `ARCH=i386`.
   - `amd64-unknown-elf-*` for `ARCH=amd64`.
