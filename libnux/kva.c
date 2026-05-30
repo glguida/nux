@@ -222,15 +222,15 @@ kva_unmap (void *ptr, size_t size)
   unsigned no, i;
   vaddr_t vaddr;
 
-  vaddr = trunc_page ((uintptr_t) ptr);
-  size = round_page (size);
+  vaddr = (uintptr_t) ptr;
   no = round_page ((vaddr & PAGE_MASK) + size) >> PAGE_SHIFT;
+  vaddr = trunc_page (vaddr);
 
   for (i = 0; i < no; i++)
     kmap_unmap (vaddr + i * PAGE_SIZE);
   kmap_commit ();
 
-  kva_free (vaddr, size);
+  kva_free (vaddr, no * PAGE_SIZE);
 }
 
 void

@@ -216,6 +216,7 @@ ___mkptr (zaddr_t zaddr, size_t size, uintptr_t opq)
   ptr->addr = zaddr;
   ptr->size = size;
 
+  size = z_to_v (size);
   tail =
     (struct kmem_tail *) ((void *) ptr + size - sizeof (struct kmem_tail));
   tail->magic = ZONE_TAIL_MAGIC;
@@ -231,7 +232,7 @@ ___freeptr (struct kmem_head *ptr, uintptr_t opq)
 {
   struct kmem_tail *tail;
   tail =
-    (struct kmem_tail *) ((void *) ptr + ptr->size -
+    (struct kmem_tail *) ((void *) ptr + z_to_v (ptr->size) -
 			  sizeof (struct kmem_tail));
   memset (ptr, 0, sizeof (*ptr));
   memset (tail, 0, sizeof (*tail));
@@ -253,7 +254,7 @@ ___get_neighbors (zaddr_t zaddr, size_t size,
 
   vaddr = z_to_v (zaddr);
   ptail = vaddr - sizeof (struct kmem_tail);
-  nhead = vaddr + size;
+  nhead = vaddr + z_to_v (size);
 
   spinlock (&brklock);
   if (low)
