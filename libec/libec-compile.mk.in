@@ -10,10 +10,11 @@ ifeq (z$(EC_MACHINE),z)
 EC_MACHINE=@MACHINE@
 endif
 
-CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing
-# Freestanding NUX images are linked at fixed addresses by linker scripts or
-# crt0 code; host-target GCCs may default to PIE and reject absolute startup
-# relocations unless PIE is disabled explicitly.
+CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -fno-pie
+# Freestanding NUX images are compiled and linked at fixed addresses by linker
+# scripts or crt0 code; host-target GCCs may default to PIE and reject absolute
+# startup relocations or emit position-independent code unless PIE is disabled
+# explicitly for both compilation and linking.
 LDFLAGS+= -nostdlib -no-pie
 CPPFLAGS+= -D_EC_SOURCE -I@LIBEC_SRCDIR@
 ASFLAGS+= -D_ASSEMBLER
