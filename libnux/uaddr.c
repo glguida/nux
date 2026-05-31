@@ -7,6 +7,7 @@
 
 #include <nux/types.h>
 #include <nux/hal.h>
+#include <nux/nux.h>
 
 #include "internal.h"
 
@@ -45,4 +46,25 @@ uaddr_validrange (uaddr_t a, size_t size)
 
   last = a + last_offset;
   return (last < max);
+}
+
+bool
+uaddr_copyfrom (void *dst, uaddr_t src, size_t size,
+		bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
+{
+  return cpu_useraccess_copyfrom (dst, src, size, pf_handler);
+}
+
+bool
+uaddr_copyto (uaddr_t dst, void *src, size_t size,
+	       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
+{
+  return cpu_useraccess_copyto (dst, src, size, pf_handler);
+}
+
+bool
+uaddr_memset (uaddr_t dst, int ch, size_t size,
+	       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
+{
+  return cpu_useraccess_memset (dst, ch, size, pf_handler);
 }

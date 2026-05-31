@@ -2,6 +2,8 @@
 #include <stdio.h>
 
 #define UCTXT_SETA2_TEST_MAGIC 0x2a2a2a2UL
+#define UADDR_MEMSET_TEST_BYTE 0xa5U
+#define UADDR_MEMSET_TEST_SIZE 17U
 
 void
 putchar (int c)
@@ -72,6 +74,29 @@ test (void)
   puts ("UCTXT_SETA2 user test passed.\n");
 }
 
+static void
+syscall_uaddr_memset_probe (void)
+{
+  volatile unsigned char buf[UADDR_MEMSET_TEST_SIZE];
+
+  for (unsigned i = 0; i < sizeof (buf); i++)
+    buf[i] = (unsigned char) i;
+
+  (void) syscall3 (8, (unsigned long) buf, UADDR_MEMSET_TEST_BYTE,
+		   sizeof (buf));
+
+  for (unsigned i = 0; i < sizeof (buf); i++)
+    {
+      if (buf[i] != (unsigned char) UADDR_MEMSET_TEST_BYTE)
+	{
+	  puts ("UADDR_MEMSET user test failed.\n");
+	  exit (101);
+	}
+    }
+
+  puts ("UADDR_MEMSET user test passed.\n");
+}
+
 int
 puts (const char *s)
 {
@@ -89,6 +114,7 @@ main (void)
   puts ("Hello from userspace, NUX!\n");
 
   test ();
+  syscall_uaddr_memset_probe ();
 
   return 42;
 }

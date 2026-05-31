@@ -13,6 +13,8 @@
 #include <nux/hal.h>
 
 #define UCTXT_SETA2_TEST_MAGIC 0x2a2a2a2UL
+#define UADDR_MEMSET_TEST_BYTE 0xa5U
+#define UADDR_MEMSET_TEST_SIZE 17UL
 
 uctxt_t u_init;
 struct hal_umap umap;
@@ -203,6 +205,12 @@ entry_sysc (uctxt_t * u,
     case 7:
       uctxt_seta2 (u, UCTXT_SETA2_TEST_MAGIC);
       info ("UCTXT_SETA2 test passed.");
+      break;
+    case 8:
+      assert (a3 == UADDR_MEMSET_TEST_BYTE);
+      assert (a4 == UADDR_MEMSET_TEST_SIZE);
+      assert (uaddr_memset ((uaddr_t) a2, (int) a3, (size_t) a4, NULL));
+      info ("UADDR_MEMSET test passed.");
       break;
     case 4096:
       putchar (a2);

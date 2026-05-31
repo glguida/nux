@@ -160,6 +160,8 @@ SYSC5 test passed.
 SYSC6 test passed.
 UCTXT_SETA2 test passed.
 UCTXT_SETA2 user test passed.
+UADDR_MEMSET test passed.
+UADDR_MEMSET user test passed.
 User exited with error code: 42
 MARKERS
 

@@ -591,6 +591,7 @@ cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
   if (!uaddr_validrange (dst, size))
     return false;
 
+  cpu_useraccess_start ();
   ci->usrpgfault = 1;
   __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)

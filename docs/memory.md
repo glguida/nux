@@ -98,7 +98,7 @@ UMAP represents a user page-table set (`include/nux/types.h`, `libnux/umap.c`).
 
 Callers are responsible for synchronizing concurrent access to the same UMAP; `libnux/umap.c` explicitly says it does not lock UMAP access.
 
-`uaddr_valid()` validates one address against the HAL user interval `[hal_virtmem_userbase(), hal_virtmem_userbase() + hal_virtmem_usersize())` (`libnux/uaddr.c`). `uaddr_validrange()` validates the half-open byte range `[a, a + size)`: non-empty ranges must have their last accessed byte inside the user interval without unsigned overflow, and zero-length user-copy no-ops are accepted at addresses from the user base through one-past-user-end inclusive. User-copy helpers in `libnux/cpu.c` enable HAL user access, use `setjmp`/`longjmp` to recover from page faults, and call an optional page-fault handler.
+`uaddr_valid()` validates one address against the HAL user interval `[hal_virtmem_userbase(), hal_virtmem_userbase() + hal_virtmem_usersize())` (`libnux/uaddr.c`). `uaddr_validrange()` validates the half-open byte range `[a, a + size)`: non-empty ranges must have their last accessed byte inside the user interval without unsigned overflow, and zero-length user-copy no-ops are accepted at addresses from the user base through one-past-user-end inclusive. User-copy helpers in `libnux/cpu.c` enable HAL user access around copyfrom, copyto, and memset user-memory accesses, use `setjmp`/`longjmp` to recover from page faults, and call an optional page-fault handler.
 
 ## Current virtual layout highlights
 
@@ -112,5 +112,6 @@ Callers are responsible for synchronizing concurrent access to the same UMAP; `l
 
 - The historical `uctxt_seta2()` setter bug was fixed in `libnux/uctxt.c`; the helper now calls `hal_frame_seta2()` and is covered by the example kernel/user `UCTXT_SETA2` smoke check.
 - The historical `libnux/uaddr.c` range-check bug is fixed: stale malformed macros were removed, `uaddr_validrange()` now checks half-open ranges without overflowing, and the example i386 smoke prints `UADDR_VALIDRANGE test passed.` after covering boundary/zero-length/overflow cases.
+- The user-address memset helper now uses the same explicit HAL user-access window as copyfrom/copyto, and public `uaddr_*` wrappers delegate to those CPU helpers. The example smoke prints `UADDR_MEMSET test passed.` and `UADDR_MEMSET user test passed.` after a kernel syscall fills a userspace buffer and userspace verifies it.
 - The historical `libnux/kva.c` metadata-removal bug is fixed: `vmap_remove()` now frees removed `struct vme` nodes with `kmem_free()` instead of allocating another node, and the example i386 smoke prints `KVA_ALLOC_FREE test passed.` after repeated balanced KVA allocation/free churn.
 - `libnux/framebuffer.c` marks RGB masks and bounds handling as incomplete.

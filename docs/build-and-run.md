@@ -84,7 +84,7 @@ out-of-tree configure/build/QEMU flow for that override. It requires host
 `x86_64-linux-gnu-{gcc,ld,ar,objcopy}`, the 32-bit APXH compiler from
 `TOOLBIN`, `make`, and `qemu-system-x86_64` to be available in the runner. It
 counts timeout rc 124 as success only after APXH/NUX boot output, `IPI!`,
-userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` kernel/user markers,
+userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` and `UADDR_MEMSET` kernel/user markers,
 `User exited with error code: 42`, no unexpected kernel page fault, and repeated
 zero-valued `pnux_entry_pagefault` idle counter lines appear:
 
@@ -219,7 +219,7 @@ After initializing submodules in a clean dedicated worktree,
 `TOOLBIN="$AMD64_TOOLBIN" ./tools/qemu-smoke-amd64-efi.sh` stages
 `EFI/BOOT/BOOTX64.EFI`, `kernel.elf`, and `user.elf`, boots under OVMF, reaches
 APXH/NUX, `IPI!`, userspace, `SYSC0` through `SYSC6`, the `UCTXT_SETA2`
-kernel/user markers, `User exited with error code: 42`, and repeated
+and `UADDR_MEMSET` kernel/user markers, `User exited with error code: 42`, and repeated
 zero-valued `pnux_entry_pagefault` idle counters before the expected timeout.
 The earlier `libnux/alloc.h:192` ACPI/KVA assertion on this path was fixed by
 commit `d9ba5f5256cb76c4f6b9207aec775a65d22e0f1a`.
@@ -274,8 +274,8 @@ mkdir -p "$BUILD"
 
 The riscv64 QEMU smoke treats timeout rc 124 as success only after the serial
 log has already reached OpenSBI/APXH/NUX/userspace markers, `SYSC0` through
-`SYSC6`, `UCTXT_SETA2`, `UADDR_VALIDRANGE`, `KVA_ALLOC_FREE`,
-`User exited with error code: 42`, and repeated zero-valued
+`SYSC6`, `UCTXT_SETA2`, `UADDR_MEMSET`, `UADDR_VALIDRANGE`,
+`KVA_ALLOC_FREE`, `User exited with error code: 42`, and repeated zero-valued
 `pnux_entry_pagefault` idle counters. The full default top-level `make` now
 uses the same APXH `sbi` selection for riscv64. RISC-V EFI source remains
 present but is intentionally not in the default APXH subdir list because its
@@ -357,7 +357,7 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 ### amd64
 
 - Top-level `configure.ac` selects `libhal_x86` + `libplt_acpi`.
-- APXH `configure` selects `multiboot efi` for `amd64`. With the README-built task cache on `PATH`, the default `amd64-unknown-elf-*` tools and default-PATH `i686-unknown-elf-gcc` pass preflight, configure, `make`, and bounded multiboot QEMU. The standardized local smoke path still uses the host-prefixed `x86_64-linux-gnu-*` override plus the reviewed i686 `TOOLCHAIN32`, and `tools/qemu-smoke-amd64.sh` captures that out-of-tree override flow after the freestanding libec `-no-pie`/`-fno-pie` fixes. Both bounded runs reach APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle counter markers before the expected timeout. EFI-specific amd64 runtime coverage remains separate from the multiboot smoke.
+- APXH `configure` selects `multiboot efi` for `amd64`. With the README-built task cache on `PATH`, the default `amd64-unknown-elf-*` tools and default-PATH `i686-unknown-elf-gcc` pass preflight, configure, `make`, and bounded multiboot QEMU. The standardized local smoke path still uses the host-prefixed `x86_64-linux-gnu-*` override plus the reviewed i686 `TOOLCHAIN32`, and `tools/qemu-smoke-amd64.sh` captures that out-of-tree override flow after the freestanding libec `-no-pie`/`-fno-pie` fixes. Both bounded runs reach APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, `UADDR_MEMSET`, exit, and idle counter markers before the expected timeout. EFI-specific amd64 runtime coverage remains separate from the multiboot smoke.
 - `libhal_x86/amd64/exe.ld` uses the high-half base `0xffff800000000000`, 512 GiB physmap, 512 GiB KVA, 512 GiB KMEM, 256 MiB PFN cache, and 64 MiB framebuffer mapping.
 
 ### riscv64
@@ -450,6 +450,8 @@ In the reviewed run, `configure` and `make -j"$(nproc)"` passed. The bounded `ma
 - `SYSC6 test passed.`
 - `UCTXT_SETA2 test passed.`
 - `UCTXT_SETA2 user test passed.`
+- `UADDR_MEMSET test passed.`
+- `UADDR_MEMSET user test passed.`
 - `UADDR_VALIDRANGE test passed.`
 - `KVA_ALLOC_FREE test passed.`
 - `User exited with error code: 42`
@@ -467,12 +469,12 @@ follow-through is:
 - Default amd64 preflight/configure/build/QEMU now passes when the README-built `gcc_toolchain_build` cache is prepended to `PATH`; the cache provides `amd64-unknown-elf-*` plus default-PATH `i686-unknown-elf-gcc`.
 - Worktree-local submodule initialization succeeded for the follow-through tasks; the current amd64 override path and riscv64 default-tool path are not blocked by submodule checkout or workspace capacity.
 - The installed host-prefixed `x86_64-linux-gnu-{gcc,ld,ar,objcopy}` tools plus `TOOLCHAIN32=i686-unknown-elf` from the stable external i386 `TOOLBIN` are sufficient for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf` preflight, configure, and `make` to pass after commit `51fc152c5d4cd92be9ee0ec9f7410e245bb16dd0` added `-no-pie` to freestanding libec links and commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e` added compile-side `-fno-pie`.
-- The baseline amd64 QEMU failure was traced to host GCC default-PIE code generation in freestanding fixed-address objects. With the override path after commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`, the bounded amd64 QEMU smoke reaches APXH/NUX boot output, `IPI!`, `Hello from userspace, NUX!`, `SYSC0` through `SYSC6`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `User exited with error code: 42`, and repeated zero-valued `pnux_entry_pagefault` idle counter lines; timeout rc 124 is expected only after those success/idle markers.
+- The baseline amd64 QEMU failure was traced to host GCC default-PIE code generation in freestanding fixed-address objects. With the override path after commit `8e1a5365dbdb2277fe9a2853f272765cbc6dd98e`, the bounded amd64 QEMU smoke reaches APXH/NUX boot output, `IPI!`, `Hello from userspace, NUX!`, `SYSC0` through `SYSC6`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_MEMSET test passed.`, `UADDR_MEMSET user test passed.`, `User exited with error code: 42`, and repeated zero-valued `pnux_entry_pagefault` idle counter lines; timeout rc 124 is expected only after those success/idle markers.
 - i386 smoke remains passing with the stable external i386 `TOOLBIN`; the follow-up verification recorded `tools/qemu-smoke-i386.sh` rc 0.
 - riscv64 default target tools are present from the bounded Debian package path: `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `gcc-riscv64-unknown-elf` 14.2.0+19, and `qemu-system-misc` 1:10.0.8+ds-0+deb13u1+b2, with required dependencies `opensbi` 1.6-1, `qemu-system-riscv`, and `qemu-system-s390x`. With initialized submodules, `ARCH=riscv64 ./tools/build-preflight.sh` passes.
 - The verified riscv64 runtime path is the explicit SBI/DTB subset build used by `tools/qemu-smoke-riscv64.sh`; bounded QEMU reaches OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA markers and repeated zero-valued `pnux_entry_pagefault` idle counters before the expected timeout.
 - Default full riscv64 top-level `make` uses the APXH `sbi` path; RISC-V EFI remains unverified and unselected by default after reproducing the old default EFI subdir selection failure: Debian `riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
-- amd64 EFI now has local OVMF runtime coverage rather than a missing-firmware or ACPI/KVA blocker: `ovmf 2025.02-8+deb13u1` is installed outside the repository, the checked-in harness reaches APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle counter markers under OVMF from a clean worktree. The EFI build uses build-local gnu-efi objects and the harness fails early on tracked dirty `contrib/gnu-efi` sources unless explicitly overridden.
+- amd64 EFI now has local OVMF runtime coverage rather than a missing-firmware or ACPI/KVA blocker: `ovmf 2025.02-8+deb13u1` is installed outside the repository, the checked-in harness reaches APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, `UADDR_MEMSET`, exit, and idle counter markers under OVMF from a clean worktree. The EFI build uses build-local gnu-efi objects and the harness fails early on tracked dirty `contrib/gnu-efi` sources unless explicitly overridden.
 
 Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-riscv64-smoke-tooling-followthrough-impl/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-default-toolchain-readme-build-impl/workspace/logs`.
 
