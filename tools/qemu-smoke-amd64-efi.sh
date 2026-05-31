@@ -17,6 +17,8 @@
 #   QEMU_LOG          QEMU serial/output log path, default $BUILD/qemu-amd64-efi-smoke.log.
 #   NUX_SRCDIR        Source checkout path, default parent of this script's tools/ dir.
 #   NUX_SMOKE_REUSE_BUILD=1 allows use of a non-empty BUILD directory.
+#   NUX_EFI_ALLOW_DIRTY_GNUEFI=1 intentionally tests tracked local changes in
+#                     contrib/gnu-efi; by default this smoke aborts on them.
 #   PAGEFAULT_IDLE_MIN minimum zero-valued pnux_entry_pagefault counter lines, default 2.
 
 set -eu
@@ -129,6 +131,20 @@ mkdir -p "$builddir"
 if git -C "$srcdir" submodule status --recursive >/dev/null 2>&1; then
     if git -C "$srcdir" submodule status --recursive | grep -q '^-'; then
         echo "$prog: warning: source checkout has uninitialized submodules; run git submodule update --init --recursive in this worktree before EFI smoke" >&2
+    fi
+fi
+
+gnuefi_src=$srcdir/contrib/gnu-efi
+if [ -d "$gnuefi_src" ] && git -C "$gnuefi_src" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    gnuefi_dirty=0
+    git -C "$gnuefi_src" diff --quiet --no-ext-diff -- || gnuefi_dirty=1
+    git -C "$gnuefi_src" diff --cached --quiet --no-ext-diff -- || gnuefi_dirty=1
+    if [ "$gnuefi_dirty" -ne 0 ]; then
+        if [ "${NUX_EFI_ALLOW_DIRTY_GNUEFI:-0}" != "1" ]; then
+            git -C "$gnuefi_src" status --short --untracked-files=no >&2 || true
+            die "contrib/gnu-efi has tracked local modifications; EFI smoke would compile those sources. Use a clean/disposable worktree or set NUX_EFI_ALLOW_DIRTY_GNUEFI=1 to test them intentionally"
+        fi
+        echo "$prog: warning: continuing with tracked local contrib/gnu-efi modifications because NUX_EFI_ALLOW_DIRTY_GNUEFI=1" >&2
     fi
 fi
 

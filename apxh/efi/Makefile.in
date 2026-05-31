@@ -25,8 +25,8 @@ GNUEFI_SRC 		= $(CONTRIBDIR)/gnu-efi
 GNUEFI_INC		= $(GNUEFI_SRC)/inc
 GNUEFI_CFLAGS_INCS	= -I$(GNUEFI_INC) -I$(GNUEFI_INC)/$(ARCH) \
 			  -I$(GNUEFI_INC)/protocol
-GNUEFI_LIB		= $(GNUEFI_SRC)
-GNUEFI_CRT_OBJS		= $(GNUEFI_LIB)/$(ARCH)/gnuefi/crt0-efi-$(ARCH).o
+GNUEFI_OBJDIR		= $(abspath ./gnu-efi/$(ARCH))
+GNUEFI_CRT_OBJS		= $(GNUEFI_OBJDIR)/gnuefi/crt0-efi-$(ARCH).o
 GNUEFI_LDS		= $(GNUEFI_SRC)/gnuefi/elf_$(ARCH)_efi.lds
 
 GNUEFI_CFLAGS += $(GNUEFI_CFLAGS_INCS) -fno-stack-protector -fshort-wchar \
@@ -42,7 +42,7 @@ ifeq ($(ARCH),x86_64)
 endif
 
 LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \
-		  -Bsymbolic -L $(GNUEFI_LIB)/${ARCH}/gnuefi -L $(GNUEFI_LIB)/${ARCH}/lib $(GNUEFI_CRT_OBJS)
+		  -Bsymbolic -L $(GNUEFI_OBJDIR)/gnuefi -L $(GNUEFI_OBJDIR)/lib $(GNUEFI_CRT_OBJS)
 
 CFLAGS		= $(GNUEFI_CFLAGS)
 vpath efi-main.c $(SRCDIR)
@@ -56,12 +56,10 @@ $(OBJDIR)/efi-%.o: efi-%.c $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: gnu-efi
-gnu-efi: $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a
+gnu-efi:
+	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_OBJDIR) ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD) OBJCOPY=$(OBJCOPY) gnuefi
 
-$(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a:
-	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/$(ARCH) ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD) OBJCOPY=$(OBJCOPY) gnuefi
-
-apxh.so: $(EFIOBJS)  subdirs $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a
+apxh.so: $(EFIOBJS) subdirs gnu-efi
 	$(LD) $(LDFLAGS) --start-group $(EFIOBJS) apxhefi/$(OBJDIR)/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o $@
 
 
@@ -73,7 +71,7 @@ apxh.so: $(EFIOBJS)  subdirs $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a
 
 .PHONY: clean_efi
 clean_efi:
-	$(MAKE) -C $(GNUEFI_SRC) clean
+	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_OBJDIR) clean
 	-rm *.o *.so *.efi
 
 ALL_TARGET	+= gnu-efi apxh.efi

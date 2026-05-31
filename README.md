@@ -53,12 +53,12 @@ container now has `/usr/bin/qemu-system-x86_64` (QEMU `10.0.8 (Debian
 1:10.0.8+ds-0+deb13u1+b2)`) plus `ovmf 2025.02-8+deb13u1` installed outside
 the repository. With `/usr/share/qemu/OVMF.fd` or split
 `/usr/share/OVMF/OVMF_CODE_4M.fd` plus `/usr/share/OVMF/OVMF_VARS_4M.fd`,
-`tools/qemu-smoke-amd64-efi.sh` boots under OVMF and reaches `APXH started.`
-and `NUX library (nux)`, but it stops before the IPI/userspace/syscall/exit/idle
-markers on `Assertion 'diff >= 0' failed at libnux/alloc.h:192` in
-`kva_alloc -> kva_physmap -> load_table -> acpi_init -> plt_init`. Treat amd64
-EFI as build + early-boot verified only until that ACPI/KVA allocator blocker is
-fixed. RISC-V EFI platform-contract verification remains open; see
+`tools/qemu-smoke-amd64-efi.sh` boots under OVMF and reaches the amd64
+APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, exit, and idle markers before
+the expected timeout. The EFI build uses build-local `gnu-efi` objects rather
+than source-tree generated submodule artifacts, and the harness stops early on
+tracked dirty `contrib/gnu-efi` sources unless explicitly overridden. RISC-V EFI
+platform-contract verification remains open; see
 [docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
