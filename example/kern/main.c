@@ -15,6 +15,10 @@
 #define UCTXT_SETA2_TEST_MAGIC 0x2a2a2a2UL
 #define UADDR_MEMSET_TEST_BYTE 0xa5U
 #define UADDR_MEMSET_TEST_SIZE 17UL
+#define KMAP_UPDATE_TEST_OLD 0x4b4d4150UL
+#define KMAP_UPDATE_TEST_NEW 0x55504454UL
+#define KMAP_UPDATE_TEST_DONE 0x444f4e45UL
+#define KMAP_UPDATE_TEST_SPINS 1000000U
 
 uctxt_t u_init;
 struct hal_umap umap;
@@ -87,12 +91,72 @@ kva_alloc_free_test (void)
   info ("KVA_ALLOC_FREE test passed.");
 }
 
+static void
+kmap_update_test (void)
+{
+  pfn_t oldpfn = pfn_alloc (0);
+  pfn_t newpfn = pfn_alloc (0);
+  unsigned long *oldpage;
+  unsigned long *newpage;
+  vaddr_t va;
+  volatile unsigned long *slot;
+  unsigned long seen = 0;
+
+  assert (oldpfn != PFN_INVALID);
+  assert (newpfn != PFN_INVALID);
+  assert (oldpfn != newpfn);
+
+  oldpage = pfn_get (oldpfn);
+  newpage = pfn_get (newpfn);
+  oldpage[0] = KMAP_UPDATE_TEST_OLD;
+  oldpage[1] = 0;
+  newpage[0] = KMAP_UPDATE_TEST_NEW;
+  newpage[1] = 0;
+  pfn_put (newpfn, newpage);
+  pfn_put (oldpfn, oldpage);
+
+  va = kva_alloc (PAGE_SIZE);
+  assert (va != VADDR_INVALID);
+
+  assert (kmap_map (va, oldpfn, HAL_PTE_P | HAL_PTE_W) == PFN_INVALID);
+  kmap_commit ();
+
+  slot = (volatile unsigned long *) va;
+  assert (slot[0] == KMAP_UPDATE_TEST_OLD);
+
+  assert (kmap_map (va, newpfn, HAL_PTE_P | HAL_PTE_W) == oldpfn);
+  kmap_commit ();
+
+  for (unsigned i = 0; i < KMAP_UPDATE_TEST_SPINS; i++)
+    {
+      seen = slot[0];
+      if (seen == KMAP_UPDATE_TEST_NEW)
+	break;
+      hal_cpu_relax ();
+    }
+  assert (seen == KMAP_UPDATE_TEST_NEW);
+
+  slot[1] = KMAP_UPDATE_TEST_DONE;
+  newpage = pfn_get (newpfn);
+  assert (newpage[1] == KMAP_UPDATE_TEST_DONE);
+  pfn_put (newpfn, newpage);
+
+  assert (kmap_unmap (va) == newpfn);
+  kmap_commit ();
+  kva_free (va, PAGE_SIZE);
+  pfn_free (newpfn);
+  pfn_free (oldpfn);
+
+  info ("KMAP_UPDATE test passed.");
+}
+
 int
 main (int argc, char *argv[])
 {
   printf ("Hello, %s (%" PRIx64 ")!", argv[1], timer_gettime ());
   uaddr_validrange_test ();
   kva_alloc_free_test ();
+  kmap_update_test ();
 
   timer_alarm (1 * 1000 * 1000 * 1000);
 

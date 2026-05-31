@@ -63,7 +63,7 @@ Important operations:
 
 - `kmap_map`, `kmap_map_noalloc`, `kmap_unmap`.
 - `kmap_ensure` and `kmap_ensure_range` to populate/free pages and change permissions.
-- `kmap_commit()` broadcasts a kernel-map update to CPUs through `cpu_kmapupdate_broadcast()`.
+- `kmap_commit()` broadcasts a kernel-map update to CPUs through `cpu_kmapupdate_broadcast()`. The broadcast path ignores invalid CPU IDs and sets `NMIOP_KMAPUPDATE` for active CPUs before sending the update NMI.
 
 The HAL comment in `include/nux/hal.h` states that KMAP mappings are static and shared across CPUs, while UMAP mappings are loadable user mappings.
 
@@ -114,4 +114,5 @@ Callers are responsible for synchronizing concurrent access to the same UMAP; `l
 - The historical `libnux/uaddr.c` range-check bug is fixed: stale malformed macros were removed, `uaddr_validrange()` now checks half-open ranges without overflowing, and the example i386 smoke prints `UADDR_VALIDRANGE test passed.` after covering boundary/zero-length/overflow cases.
 - The user-address memset helper now uses the same explicit HAL user-access window as copyfrom/copyto, and public `uaddr_*` wrappers delegate to those CPU helpers. The example smoke prints `UADDR_MEMSET test passed.` and `UADDR_MEMSET user test passed.` after a kernel syscall fills a userspace buffer and userspace verifies it.
 - The historical `libnux/kva.c` metadata-removal bug is fixed: `vmap_remove()` now frees removed `struct vme` nodes with `kmem_free()` instead of allocating another node, and the example i386 smoke prints `KVA_ALLOC_FREE test passed.` after repeated balanced KVA allocation/free churn.
+- The historical `libnux/cpu.c` KMAP-update guard bug is fixed: `cpu_kmapupdate()` now returns only for invalid CPU IDs and otherwise raises `NMIOP_KMAPUPDATE`. The example smoke remaps a KVA page after CPU initialization and prints `KMAP_UPDATE test passed.` after observing the new PFN through the same virtual address.
 - `libnux/framebuffer.c` marks RGB masks and bounds handling as incomplete.

@@ -425,7 +425,7 @@ void
 cpu_kmapupdate (int cpu)
 {
   struct cpu_info *ci = cpu_getinfo (cpu);
-  if (ci != NULL)
+  if (ci == NULL)
     return;
 
   __atomic_or_fetch (&ci->nmiop, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);

@@ -375,7 +375,8 @@ The i386 smoke must keep the APXH/NUX/userspace markers, syscall arity markers
 through `SYSC6`, `UCTXT_SETA2 test passed.`,
 `UCTXT_SETA2 user test passed.`, `UADDR_MEMSET test passed.`,
 `UADDR_MEMSET user test passed.`, `UADDR_VALIDRANGE test passed.`,
-`KVA_ALLOC_FREE test passed.`, and `User exited with error code: 42`.
+`KVA_ALLOC_FREE test passed.`, `KMAP_UPDATE test passed.`, and
+`User exited with error code: 42`.
 
 Because NUX is not an i386-only substrate, any future implementation plan must
 also explain the amd64 and riscv64 verification path. If target toolchains or
