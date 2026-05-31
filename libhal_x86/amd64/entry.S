@@ -10,6 +10,17 @@
 #include "amd64.h"
 #include "../internal.h"
 
+.macro _clac_user_frame csoff
+	/* Clear user-carried AC before C; leave kernel user-copy faults alone. */
+	mov %cr4, %rax
+	test $CR4_SMAP, %rax
+	jz 1f
+	testq $3, \csoff(%rsp)
+	jz 1f
+	.byte 0x0f, 0x01, 0xca
+1:
+.endm
+
 	.globl _syscall_frame_entry
 _syscall_frame_entry:
 	/* Setup RSP, then emulate IRET frame. */
@@ -60,6 +71,7 @@ _syscall_frame_entry:
 	push %rax
 
 	pushq $FRAMETYPE_SYSC
+	_clac_user_frame 176
 
 	mov %rsp, %rdi
 
@@ -156,6 +168,7 @@ _syscall_frame_entry:
 	push %rax
 
 	pushq $FRAMETYPE_INTR
+	_clac_user_frame 176
 	
 	mov %rsp, %rdi
 

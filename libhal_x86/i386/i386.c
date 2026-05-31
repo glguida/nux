@@ -162,6 +162,8 @@ hal_pcpu_enter (unsigned pcpuid)
   asm volatile ("ltr %%ax"::"a" (tss));
   asm volatile ("mov %%ax, %%fs"::"a" (fs));
 
+  x86_useraccess_init ();
+
   bsp_enter_called = 1;
 }
 

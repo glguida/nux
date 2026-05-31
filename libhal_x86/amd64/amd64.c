@@ -223,6 +223,8 @@ hal_pcpu_enter (unsigned pcpuid)
   set_kernel_gsbase (pcpu_haldata[pcpuid]);
 
   asm volatile ("ltr %%ax"::"a" (TSS_GDTIDX (pcpuid) << 3));
+
+  x86_useraccess_init ();
 }
 
 void

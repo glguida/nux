@@ -77,7 +77,7 @@ The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and 
 ## Current architectural gaps
 
 - RISC-V platform support has explicit TODOs for secondary CPU start, platform CPU enter, external IRQs, IRQ enable/disable/type/max, and EOI (`libhal_riscv/riscv.c`, `libplt_sbi/sbi.c`).
-- x86 user-access hardening has TODO placeholders for SMEP in `libhal_x86/x86.c`.
+- x86 user-access hardening now enables CPUID-guarded SMAP per CPU and brackets user-copy windows with guarded `stac`/`clac`; SMEP remains a separate hardening audit.
 - Generic NUX PTE and entry-hook audits are tracked in `docs/nux-pte-entry-contracts.md`. Murgia/MH is one downstream pressure test, alongside other NUX workloads, but the historical root/leaf and mutate-input-frame TODOs do not authorize code changes without a demonstrated generic NUX problem.
 - Murgia/MH IOMMU support has a separate transparency requirement: Murgia should keep the same user-facing device/export API on IOMMU-present and no-IOMMU systems, while ACPI/DMAR/IVRS parsing and device policy remain above the NUX typed-platform-pointer boundary. Future NUX work must not expose raw ACPI tables or a public ACPI/platform fact inventory for that policy.
 - APXH boot-path verification is still incomplete beyond the reviewed i386/multiboot, amd64 multiboot default-prefix/override, amd64 EFI, and riscv64 SBI/DTB paths: amd64 EFI now has default-prefix OVMF runtime smoke coverage through the normal APXH/NUX, IPI, userspace, syscall, exit, and idle markers from a clean worktree; RISC-V EFI still needs a platform-contract/toolchain decision; see [hardware support](hardware-support.md) and [backlog](backlog.md).

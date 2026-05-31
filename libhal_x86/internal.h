@@ -34,6 +34,9 @@
 #define PTE_AVAIL   0xe00
 #define PTE_NX      0x8000000000000000LL
 
+#define CR4_SMEP    0x00100000
+#define CR4_SMAP    0x00200000
+
 #define PTE_AVAIL0 (1 << 9)
 #define PTE_AVAIL1 (2 << 9)
 #define PTE_AVAIL2 (4 << 9)
@@ -59,6 +62,7 @@ void pae32_init_ap (void);
 void pae64_init (void);
 void pae64_init_ap (void);
 void pmap_init (void);
+void x86_useraccess_init (void);
 void i386_init_done (void);
 void amd64_init_done (void);
 

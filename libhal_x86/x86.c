@@ -114,6 +114,70 @@ write_cr4 (unsigned long r)
   asm volatile ("mov %0, %%cr4\n"::"r" (r));
 }
 
+#define CPUID_EXTFEAT_LEAF 0x7
+#define CPUID_7_0_EBX_SMAP (1 << 20)
+
+static inline void
+x86_cpuid (uint32_t leaf, uint32_t subleaf, uint32_t *eax, uint32_t *ebx,
+	   uint32_t *ecx, uint32_t *edx)
+{
+  uint32_t a = leaf;
+  uint32_t b;
+  uint32_t c = subleaf;
+  uint32_t d;
+
+  asm volatile ("cpuid\n"
+		: "+a" (a), "=b" (b), "+c" (c), "=d" (d)
+		:
+		: "memory");
+
+  *eax = a;
+  *ebx = b;
+  *ecx = c;
+  *edx = d;
+}
+
+static bool
+x86_cpu_supports_smap (void)
+{
+  uint32_t max_leaf;
+  uint32_t eax, ebx, ecx, edx;
+
+  x86_cpuid (0, 0, &max_leaf, &ebx, &ecx, &edx);
+  if (max_leaf < CPUID_EXTFEAT_LEAF)
+    return false;
+
+  x86_cpuid (CPUID_EXTFEAT_LEAF, 0, &eax, &ebx, &ecx, &edx);
+  return !!(ebx & CPUID_7_0_EBX_SMAP);
+}
+
+static inline void
+x86_stac (void)
+{
+  asm volatile (".byte 0x0f, 0x01, 0xcb" ::: "memory", "cc");
+}
+
+static inline void
+x86_clac (void)
+{
+  asm volatile (".byte 0x0f, 0x01, 0xca" ::: "memory", "cc");
+}
+
+void
+x86_useraccess_init (void)
+{
+  unsigned long cr4;
+
+  if (!x86_cpu_supports_smap ())
+    return;
+
+  cr4 = read_cr4 ();
+  if (!(cr4 & CR4_SMAP))
+    write_cr4 (cr4 | CR4_SMAP);
+
+  x86_clac ();
+}
+
 unsigned long
 read_cr3 (void)
 {
@@ -306,13 +370,15 @@ hal_cpu_tlbop (hal_tlbop_t tlbop)
 void
 hal_useraccess_start (void)
 {
-  /* TODO: SMEP */
+  if (read_cr4 () & CR4_SMAP)
+    x86_stac ();
 }
 
 void
 hal_useraccess_end (void)
 {
-  /* TODO: SMEP */
+  if (read_cr4 () & CR4_SMAP)
+    x86_clac ();
 }
 
 vaddr_t

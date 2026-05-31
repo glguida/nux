@@ -83,9 +83,9 @@ This backlog is source-inspected only unless a verification result, task-log ite
 8. **Define the RISC-V EFI platform contract.**
    - Evidence: APXH EFI has RISC-V entry code but returns `PLT_ACPI`; the configured RISC-V platform library requires `PLT_DTB`.
    - Next slice: decide whether RISC-V EFI should use ACPI, DTB handoff, or be disabled until supported.
-9. **Add x86 SMEP/user-access hardening.**
-   - Evidence: `libhal_x86/x86.c` has TODOs in `hal_useraccess_start()` and `hal_useraccess_end()`.
-   - Next slice: implement CR4.SMEP/SMAP-aware behavior or explicitly document unsupported CPU hardening.
+9. **x86 SMAP user-access hardening is implemented; SMEP remains separate.**
+   - Current status: `libhal_x86/x86.c` detects CPUID leaf 7 SMAP support, `libhal_x86/i386/i386.c` and `libhal_x86/amd64/amd64.c` enable `CR4.SMAP` per CPU during HAL CPU entry, and `hal_useraccess_start()`/`hal_useraccess_end()` bracket generic user-copy windows with `stac`/`clac` only when the local CPU has SMAP enabled. x86 user-origin entry paths clear AC when SMAP is active so userspace cannot carry an open user-access window into the kernel.
+   - Remaining gap: `CR4.SMEP` is not enabled by this slice. SMEP should be evaluated separately with a focused audit of executable user mappings, entry/return paths, and AP bootstrap mappings.
 10. **Improve framebuffer correctness.**
     - Evidence: `libnux/framebuffer.c` has XXX comments for RGB masks, bounds checking, and rewrite need.
     - Next slice: honor framebuffer masks and clamp writes; add a QEMU visual/serial smoke check.

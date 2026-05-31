@@ -7,8 +7,20 @@
 
 #include <machine/asm.h>
 #include "i386.h"
+#include "../internal.h"
 
 	.altmacro
+.macro _clac_user_frame csoff
+	/* Clear user-carried AC before C; leave kernel user-copy faults alone. */
+	mov %cr4, %eax
+	test $CR4_SMAP, %eax
+	jz 1f
+	testw $3, \csoff(%esp)
+	jz 1f
+	.byte 0x0f, 0x01, 0xca
+1:
+.endm
+
 .macro _do_entry vct
 	pushal
 	mov  %cr3, %eax
@@ -19,6 +31,7 @@
 	pushw %fs
 	pushw %es
 	pushw %ds
+	_clac_user_frame 56
 	mov $KDS, %ax
 	mov %ax, %ds
 	mov %ax, %es
