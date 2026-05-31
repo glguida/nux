@@ -77,9 +77,9 @@ This backlog is source-inspected only unless a verification result, task-log ite
 6. **Complete or document RISC-V SMP support.**
    - Evidence: `libhal_riscv/riscv.c` has TODOs in `hal_pcpu_init()` and `hal_pcpu_startaddr()` and returns `PADDR_INVALID` for secondary start.
    - Next slice: decide whether SBI HSM or another start mechanism should be used.
-7. **Complete or document RISC-V external IRQ/PLIC support.**
-   - Evidence: `libplt_sbi/sbi.c` TODOs cover IRQ type, enable/disable/max, EOI, platform CPU enter/start, and external interrupt dispatch.
-   - Next slice: wire PLIC contexts discovered from DTB to `plt_interrupt()` and IRQ APIs.
+7. **RISC-V external IRQ/PLIC baseline is implemented; device/SMP follow-through remains.**
+   - Current status: `libplt_sbi/sbi.c` now stores the DTB-discovered PLIC MMIO base/length, source count (`riscv,ndev` with a conservative fallback), and S-mode context mappings by DTB hart `reg`; maps the standard PLIC priority/enable/threshold/claim registers; initializes the current CPU's S-mode context; exposes valid PLIC source IDs through `plt_irq_max()`, `plt_irq_type()`, `plt_irq_enable()`, `plt_irq_disable()`, and `plt_eoi_irq()`; and dispatches supervisor external interrupt cause 9 through PLIC claim to `hal_entry_irq()` with completion through the normal EOI path.
+   - Remaining gap: no device-specific trigger/polarity metadata is parsed yet, so valid PLIC sources default to active-high level semantics; the current smoke verifies discovery/initialization but does not inject an external device IRQ; RISC-V secondary CPU startup/context use remains tracked by the SMP item.
 8. **Define the RISC-V EFI platform contract.**
    - Evidence: APXH EFI has RISC-V entry code but returns `PLT_ACPI`; the configured RISC-V platform library requires `PLT_DTB`.
    - Next slice: decide whether RISC-V EFI should use ACPI, DTB handoff, or be disabled until supported.

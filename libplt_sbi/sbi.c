@@ -8,12 +8,68 @@
 
 static uint64_t timebase_frequency = 0;
 
-#if 0
+#define PLIC_PRIORITY_BASE      0x000000UL
+#define PLIC_ENABLE_BASE        0x002000UL
+#define PLIC_ENABLE_STRIDE      0x80UL
+#define PLIC_CONTEXT_BASE       0x200000UL
+#define PLIC_CONTEXT_STRIDE     0x1000UL
+#define PLIC_CONTEXT_THRESHOLD  0x0UL
+#define PLIC_CONTEXT_CLAIM      0x4UL
+
+/* The standard SiFive/RISC-V PLIC layout leaves source 0 unused. */
+#define PLIC_MAX_SOURCES        1023U
+#define PLIC_FALLBACK_SOURCES   31U
+#define PLIC_MAX_MAP_LENGTH     (16ULL << 20)
+#define PLIC_INVALID_CONTEXT    ((unsigned) -1)
+
 static struct plt_cpu
 {
-  unsigned plic_ctx;		/* S-mode PLIC context. */
+  bool present;
+  uint64_t hartid;
+  bool plic_ctx_valid;
+  unsigned plic_ctx;          /* S-mode PLIC context. */
 } pltcpus[HAL_MAXCPUS];
-#endif
+
+static unsigned pltcpu_count;
+
+static struct plic_state
+{
+  void *base;
+  uint64_t pa;
+  uint64_t length;
+  unsigned source_count;
+} plic;
+
+static int
+pltcpu_find_hart (uint64_t hartid)
+{
+  unsigned i;
+
+  for (i = 0; i < pltcpu_count; i++)
+    if (pltcpus[i].present && pltcpus[i].hartid == hartid)
+      return (int) i;
+
+  return -1;
+}
+
+static void
+pltcpu_add (uint64_t hartid)
+{
+  if (pltcpu_find_hart (hartid) >= 0)
+    return;
+
+  if (pltcpu_count >= HAL_MAXCPUS)
+    {
+      warn ("DT: hart %" PRIu64 " exceeds HAL_MAXCPUS; ignoring", hartid);
+      return;
+    }
+
+  pltcpus[pltcpu_count].present = true;
+  pltcpus[pltcpu_count].hartid = hartid;
+  pltcpus[pltcpu_count].plic_ctx_valid = false;
+  pltcpus[pltcpu_count].plic_ctx = PLIC_INVALID_CONTEXT;
+  pltcpu_count++;
+}
 
 static void
 _get_cells (const void *fdt, int noff, unsigned *addr, unsigned *size)
@@ -95,34 +151,292 @@ _get_reg (const void *fdt, int noff, unsigned idx, uint64_t * base,
   return true;
 }
 
+static bool
+plic_mmio_valid (uint64_t off, size_t size)
+{
+  if (plic.base == NULL)
+    return false;
+  if (off > plic.length)
+    return false;
+  if ((uint64_t) size > plic.length - off)
+    return false;
+  return true;
+}
+
+static uint32_t
+plic_read32 (uint64_t off)
+{
+  volatile uint32_t *reg;
+
+  if (!plic_mmio_valid (off, sizeof (uint32_t)))
+    return 0;
+
+  reg = (volatile uint32_t *) ((uint8_t *) plic.base + off);
+  return *reg;
+}
+
+static void
+plic_write32 (uint64_t off, uint32_t val)
+{
+  volatile uint32_t *reg;
+
+  if (!plic_mmio_valid (off, sizeof (uint32_t)))
+    return;
+
+  reg = (volatile uint32_t *) ((uint8_t *) plic.base + off);
+  *reg = val;
+}
+
+static uint64_t
+plic_priority_offset (unsigned irq)
+{
+  return PLIC_PRIORITY_BASE + (uint64_t) irq * sizeof (uint32_t);
+}
+
+static uint64_t
+plic_enable_offset (unsigned ctx, unsigned irq)
+{
+  return PLIC_ENABLE_BASE + (uint64_t) ctx * PLIC_ENABLE_STRIDE
+    + (uint64_t) (irq / 32) * sizeof (uint32_t);
+}
+
+static uint64_t
+plic_threshold_offset (unsigned ctx)
+{
+  return PLIC_CONTEXT_BASE + (uint64_t) ctx * PLIC_CONTEXT_STRIDE
+    + PLIC_CONTEXT_THRESHOLD;
+}
+
+static uint64_t
+plic_claim_offset (unsigned ctx)
+{
+  return PLIC_CONTEXT_BASE + (uint64_t) ctx * PLIC_CONTEXT_STRIDE
+    + PLIC_CONTEXT_CLAIM;
+}
+
+static bool
+plic_valid_irq (unsigned irq)
+{
+  return plic.base != NULL && irq > 0 && irq <= plic.source_count;
+}
+
+static bool
+plic_context_valid (unsigned ctx)
+{
+  if (plic.base == NULL || plic.source_count == 0)
+    return false;
+
+  return plic_mmio_valid (plic_threshold_offset (ctx), sizeof (uint32_t))
+    && plic_mmio_valid (plic_claim_offset (ctx), sizeof (uint32_t))
+    && plic_mmio_valid (plic_enable_offset (ctx, plic.source_count),
+			       sizeof (uint32_t));
+}
+
+static bool
+plic_cpu_context (unsigned cpu, unsigned *ctx)
+{
+  if (cpu >= HAL_MAXCPUS || !pltcpus[cpu].present
+      || !pltcpus[cpu].plic_ctx_valid)
+    return false;
+
+  if (!plic_context_valid (pltcpus[cpu].plic_ctx))
+    return false;
+
+  if (ctx != NULL)
+    *ctx = pltcpus[cpu].plic_ctx;
+  return true;
+}
+
+static bool
+plic_current_context (unsigned *ctx)
+{
+  return plic_cpu_context (plt_pcpu_id (), ctx);
+}
+
+static void
+plic_complete_context (unsigned ctx, unsigned irq)
+{
+  plic_write32 (plic_claim_offset (ctx), irq);
+}
+
+static unsigned
+plic_claim_current (void)
+{
+  unsigned ctx;
+
+  if (!plic_current_context (&ctx))
+    return 0;
+
+  return plic_read32 (plic_claim_offset (ctx));
+}
+
+static void
+plic_context_init (unsigned ctx)
+{
+  unsigned word;
+
+  for (word = 0; word <= plic.source_count / 32; word++)
+    plic_write32 (PLIC_ENABLE_BASE + (uint64_t) ctx * PLIC_ENABLE_STRIDE
+		  + (uint64_t) word * sizeof (uint32_t), 0);
+
+  /* Threshold 0 permits every enabled source with non-zero priority. */
+  plic_write32 (plic_threshold_offset (ctx), 0);
+}
+
+static unsigned
+plic_source_count (const void *fdt, int noff, uint64_t length)
+{
+  bool fallback = false;
+  int len;
+  const void *prop;
+  unsigned ndev;
+  uint64_t max_by_length64;
+  unsigned max_by_length;
+
+  prop = fdt_getprop (fdt, noff, "riscv,ndev", &len);
+  if (prop != NULL && len == sizeof (uint32_t))
+    {
+      ndev = fdt32_to_cpu (*(const uint32_t *) prop);
+    }
+  else
+    {
+      if (prop != NULL)
+	warn ("PLIC: invalid riscv,ndev length %d; using fallback", len);
+      fallback = true;
+      ndev = PLIC_FALLBACK_SOURCES;
+    }
+
+  if (ndev == 0)
+    {
+      warn ("PLIC: zero interrupt sources; disabling external IRQs");
+      return 0;
+    }
+
+  if (fallback)
+    warn ("PLIC: missing riscv,ndev; using conservative %u-source fallback",
+	  ndev);
+
+  if (ndev > PLIC_MAX_SOURCES)
+    {
+      warn ("PLIC: riscv,ndev %u exceeds standard layout; capping at %u",
+	    ndev, PLIC_MAX_SOURCES);
+      ndev = PLIC_MAX_SOURCES;
+    }
+
+  if (length < sizeof (uint32_t))
+    return 0;
+  max_by_length64 = (length - sizeof (uint32_t)) / sizeof (uint32_t);
+  max_by_length = max_by_length64 > PLIC_MAX_SOURCES
+    ? PLIC_MAX_SOURCES : (unsigned) max_by_length64;
+  if (ndev > max_by_length)
+    {
+      warn ("PLIC: source count %u exceeds MMIO priority window; capping at %u",
+	    ndev, max_by_length);
+      ndev = max_by_length;
+    }
+
+  return ndev;
+}
+
+static bool
+plic_assign_context (uint64_t hartid, unsigned ctx)
+{
+  int cpu;
+
+  cpu = pltcpu_find_hart (hartid);
+  if (cpu < 0)
+    {
+      warn ("PLIC: S-mode context %u references unknown hart %" PRIu64,
+	    ctx, hartid);
+      return false;
+    }
+
+  if (!plic_context_valid (ctx))
+    {
+      warn ("PLIC: S-mode context %u for hart %" PRIu64
+	    " is outside the MMIO window", ctx, hartid);
+      return false;
+    }
+
+  pltcpus[cpu].plic_ctx = ctx;
+  pltcpus[cpu].plic_ctx_valid = true;
+  return true;
+}
+
 static void
 plic_init (const void *fdt, int noff)
 {
   int len;
   const void *prop;
   uint64_t base, length;
+  unsigned valid_contexts = 0;
+  const int pair_size = sizeof (uint32_t) * 2;
 
-  if (!_get_reg (fdt, noff, 0, &base, &length))
-    return;
+  if (plic.base != NULL)
+    {
+      warn ("PLIC: ignoring additional compatible node %s",
+	    fdt_get_name (fdt, noff, NULL));
+      return;
+    }
+
+  if (!_get_reg (fdt, noff, 0, &base, &length) || length == 0)
+    {
+      warn ("PLIC: node %s has no usable reg property",
+	    fdt_get_name (fdt, noff, NULL));
+      return;
+    }
+
   printf ("PLIC: %s [%016" PRIx64 ":%016" PRIx64 "]\n",
 	  fdt_get_name (fdt, noff, NULL), base, base + length);
 
+  if (length > PLIC_MAX_MAP_LENGTH)
+    {
+      warn ("PLIC: MMIO window length %" PRIx64
+	    " exceeds bounded mapping size; capping at %" PRIx64,
+	    length, (uint64_t) PLIC_MAX_MAP_LENGTH);
+      length = PLIC_MAX_MAP_LENGTH;
+    }
+
+  plic.pa = base;
+  plic.length = length;
+  plic.source_count = plic_source_count (fdt, noff, length);
+  if (plic.source_count == 0)
+    return;
+
+  plic.base = kva_physmap (base, (size_t) length, HAL_PTE_P | HAL_PTE_W);
+  if (plic.base == NULL)
+    {
+      warn ("PLIC: failed to map MMIO window; disabling external IRQs");
+      plic.source_count = 0;
+      return;
+    }
+
+  printf ("PLIC: %u sources mapped at %p\n", plic.source_count, plic.base);
+
   prop = fdt_getprop (fdt, noff, "interrupts-extended", &len);
+  if (prop == NULL || len < pair_size)
+    {
+      warn ("PLIC: no interrupts-extended S-mode contexts found");
+      return;
+    }
+  if ((len % pair_size) != 0)
+    warn ("PLIC: ignoring trailing bytes in interrupts-extended");
 
   printf ("PLIC: External Interrupts Contexts: ");
-  for (int i = 0; i < len; i += sizeof (uint32_t) * 2)
+  for (int i = 0; i + pair_size <= len; i += pair_size)
     {
+      const uint32_t *cells;
       uint32_t phandle, intr;
-      phandle = fdt32_to_cpu (*(uint32_t *) (prop + i));
-      intr = fdt32_to_cpu (*((uint32_t *) (prop + i) + 1));
 
-      /*
-       * External Interrupts for S-mode. The bit we're interested
-       * about.
-       */
+      cells = (const uint32_t *) ((const uint8_t *) prop + i);
+      phandle = fdt32_to_cpu (cells[0]);
+      intr = fdt32_to_cpu (cells[1]);
+
+      /* External interrupts for S-mode are delivered as cause 9. */
       if (intr == 9)
 	{
-	  uint64_t cpu;
+	  uint64_t hartid;
+	  unsigned ctx;
 	  int hoff, poff;
 
 	  hoff = fdt_node_offset_by_phandle (fdt, phandle);
@@ -131,13 +445,19 @@ plic_init (const void *fdt, int noff)
 	  poff = fdt_parent_offset (fdt, hoff);
 	  if (poff < 0)
 	    continue;
-	  if (!_get_reg (fdt, poff, 0, &cpu, NULL))
+	  if (!_get_reg (fdt, poff, 0, &hartid, NULL))
 	    continue;
 
-	  printf ("%" PRId64 "[%d] ", cpu, i / (sizeof (uint32_t) * 2));
+	  ctx = (unsigned) (i / pair_size);
+	  printf ("%" PRIu64 "[%u] ", hartid, ctx);
+	  if (plic_assign_context (hartid, ctx))
+	    valid_contexts++;
 	}
     }
   printf ("\n");
+
+  if (valid_contexts == 0)
+    warn ("PLIC: no usable S-mode contexts; IRQ APIs stay disabled");
 }
 
 void
@@ -218,6 +538,15 @@ plt_init (void)
 
       printf ("%s ", name);
 
+      {
+	uint64_t hartid;
+
+	if (_get_reg (fdt, _cpu_off, 0, &hartid, NULL))
+	  pltcpu_add (hartid);
+	else
+	  warn ("DT: CPU node %s has no usable hart reg", name);
+      }
+
       prop = fdt_getprop (fdt, cpus_off, "timebase-frequency", &len);
       if (prop != NULL)
 	{
@@ -258,9 +587,11 @@ plt_init (void)
 	{
 	  while (pos < len)
 	    {
-	      if (!strncmp ((char *) prop + pos, "sifive,plic-1.0.0", 17))
+	      if (!strncmp ((char *) prop + pos, "sifive,plic-1.0.0", 17)
+		  || !strncmp ((char *) prop + pos, "riscv,plic0", 11))
 		{
 		  plic_init (fdt, noff);
+		  break;
 		}
 	      pos += strlen ((char *) prop + pos) + 1;
 	    }
@@ -273,7 +604,15 @@ plt_init (void)
 void
 plt_pcpu_enter (void)
 {
-  /* TODO */
+  unsigned cpu, ctx;
+
+  cpu = plt_pcpu_id ();
+  if (plic_cpu_context (cpu, &ctx))
+    {
+      plic_context_init (ctx);
+      info ("PLIC: CPU%u hart %" PRIu64 " S-mode context %u ready",
+	    cpu, pltcpus[cpu].hartid, ctx);
+    }
 }
 
 int
@@ -354,27 +693,62 @@ plt_vect_process (unsigned vect)
 enum plt_irq_type
 plt_irq_type (unsigned irq)
 {
-  /* TODO */
-  return PLT_IRQ_INVALID;
+  if (!plic_valid_irq (irq) || !plic_current_context (NULL))
+    return PLT_IRQ_INVALID;
+
+  /*
+   * The PLIC itself does not expose trigger/polarity metadata in its DTB
+   * node.  Until device-specific metadata is plumbed through a future
+   * driver path, treat valid external sources as active-high level lines,
+   * matching the common QEMU virt MMIO-device wiring.  Completion still uses
+   * the PLIC claim/complete register for every dispatched source.
+   */
+  return PLT_IRQ_LVLHI;
 }
 
 void
 plt_irq_enable (unsigned irq)
 {
-  /* TODO */
+  unsigned ctx;
+  uint64_t off;
+  uint32_t val;
+
+  if (!plic_valid_irq (irq) || !plic_current_context (&ctx))
+    return;
+
+  /* Priority 0 means "never interrupt"; use the lowest active priority. */
+  plic_write32 (plic_priority_offset (irq), 1);
+
+  off = plic_enable_offset (ctx, irq);
+  val = plic_read32 (off);
+  val |= 1U << (irq & 31);
+  plic_write32 (off, val);
 }
 
 void
 plt_irq_disable (unsigned irq)
 {
-  /* TODO */
+  unsigned ctx;
+  uint64_t off;
+  uint32_t val;
+
+  if (!plic_valid_irq (irq) || !plic_current_context (&ctx))
+    return;
+
+  off = plic_enable_offset (ctx, irq);
+  val = plic_read32 (off);
+  val &= ~(1U << (irq & 31));
+  plic_write32 (off, val);
 }
 
 unsigned
 plt_irq_max (void)
 {
-  /* TODO */
-  return 0;
+  if (!plic_current_context (NULL))
+    return 0;
+
+  /* Source ID 0 is reserved by the PLIC and never a valid NUX IRQ. */
+  return plic.source_count + 1;
 }
 
 void
@@ -386,7 +760,12 @@ plt_eoi_ipi (void)
 void
 plt_eoi_irq (unsigned irq)
 {
-  /* TODO. */
+  unsigned ctx;
+
+  if (!plic_valid_irq (irq) || !plic_current_context (&ctx))
+    return;
+
+  plic_complete_context (ctx, irq);
 }
 
 void
@@ -412,9 +791,28 @@ plt_interrupt (unsigned vect, struct hal_frame *f)
       break;
 
     case 9:			/* Supervisor External Interrupt. */
-      /* TODO: External interrupts. */
-      r = f;
-      break;
+      {
+	unsigned irq, ctx;
+
+	irq = plic_claim_current ();
+	if (irq == 0)
+	  {
+	    r = f;
+	    break;
+	  }
+
+	if (!plic_valid_irq (irq))
+	  {
+	    warn ("PLIC: claimed invalid source %u", irq);
+	    if (plic_current_context (&ctx))
+	      plic_complete_context (ctx, irq);
+	    r = f;
+	    break;
+	  }
+
+	r = hal_entry_irq (f, irq, plt_irq_islevel (irq));
+	break;
+      }
 
     default:
       r = f;

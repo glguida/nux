@@ -34,15 +34,15 @@ Current implemented areas:
 
 - SV48 page tables and 42-bit user UMAP default: `libhal_riscv/sv48.c`, `libhal_riscv/include/nux/hal_config.h`.
 - SBI/OpenSBI APXH path parses DTB memory and reserved-memory nodes: `apxh/sbi/md.c`.
-- Runtime platform parses DTB `/cpus`, `timebase-frequency`, and PLIC-compatible nodes: `libplt_sbi/sbi.c`.
+- Runtime platform parses DTB `/cpus`, `timebase-frequency`, and PLIC-compatible nodes: `libplt_sbi/sbi.c`. The SBI/DTB platform now keeps the PLIC MMIO base/length, source count, and S-mode context mapping for discovered harts; maps the standard PLIC priority, enable, threshold, and claim/complete registers; initializes the current CPU's S-mode context; implements the IRQ max/type/enable/disable/EOI APIs for valid PLIC source IDs; and routes supervisor external interrupt cause 9 through PLIC claim to `hal_entry_irq()`.
 - Timer uses `rdtime` plus SBI calls to set/clear alarms (`libplt_sbi/sbi.c`).
 - RISC-V uses `HAL_NMIEMUL` and `libnux/nmiemul.c` because the HAL cannot use true NMIs as NUX expects (`libhal_riscv/include/nux/hal_config.h`, `libhal_riscv/internal.h`).
 
 Known gaps:
 
 - `hal_pcpu_init`, `hal_pcpu_startaddr`, and `hal_init_done` are TODO or no-op in `libhal_riscv/riscv.c`; secondary CPU bring-up currently returns `PADDR_INVALID`.
-- `plt_pcpu_enter`, `plt_pcpu_iterate`, `plt_pcpu_start`, IRQ type/enable/disable/max, IRQ EOI, and external interrupts have TODO placeholders in `libplt_sbi/sbi.c`.
-- PLIC contexts are printed but not fully wired to external interrupt dispatch (`libplt_sbi/sbi.c`).
+- `plt_pcpu_iterate` still exposes only the BSP, `plt_pcpu_start` is still a TODO, and secondary CPU bring-up/context use remains unsupported in `libplt_sbi/sbi.c`.
+- The PLIC baseline does not yet parse device-specific trigger/polarity metadata or inject a real external device IRQ in smoke tests; valid PLIC source IDs currently use an active-high level default, and the reviewed QEMU virt path verifies PLIC discovery/context initialization rather than an end-to-end device interrupt.
 - RISC-V EFI APXH records a `PLT_ACPI` descriptor, while `libplt_sbi` requires `PLT_DTB`; this path should be treated as unverified until the boot/platform contract is made explicit.
 
 ## Console and framebuffer
