@@ -22,6 +22,8 @@ static uint64_t timebase_frequency = 0;
 #define PLIC_MAX_MAP_LENGTH     (16ULL << 20)
 #define PLIC_INVALID_CONTEXT    ((unsigned) -1)
 
+#define RISCV_BSP_PCPU          0U
+
 static struct plt_cpu
 {
   bool present;
@@ -31,6 +33,15 @@ static struct plt_cpu
 } pltcpus[HAL_MAXCPUS];
 
 static unsigned pltcpu_count;
+
+static void
+pltcpu_report_bsp_contract (void)
+{
+  if (pltcpu_count > 1)
+    warn ("RISC-V/SBI: %u DTB harts discovered; exposing BSP CPU%u only; "
+	  "secondary harts require SBI HSM/AP bootstrap support",
+	  pltcpu_count, RISCV_BSP_PCPU);
+}
 
 static struct plic_state
 {
@@ -574,6 +585,8 @@ plt_init (void)
 
   printf ("\n");
 
+  pltcpu_report_bsp_contract ();
+
   printf ("DT: timebase-frequency: %ld\n", timebase_frequency);
 
 
@@ -620,12 +633,26 @@ plt_pcpu_iterate (void)
 {
   static int next_pcpu = 0;
 
-  /* TODO */
+  /*
+   * The current RISC-V/SBI PCPU contract is intentionally BSP-only.  The
+   * platform DTB scan keeps every discovered hart internally for PLIC context
+   * matching, but NUX exposes only one physical CPU until APXH carries an
+   * explicit OpenSBI boot-hart/AP handoff and the HAL/PLT grow SBI HSM
+   * secondary startup support.
+   *
+   * Match the x86 LAPIC iterator shape: return the supported BSP CPU once per
+   * full pass, then reset when reporting PLT_PCPU_INVALID.  This makes both
+   * cpu_init() and the later cpu_startall() pass see the same supported CPU set
+   * instead of relying on the previous one-shot static counter accident.
+   */
+  if (next_pcpu == 0)
+    {
+      next_pcpu = 1;
+      return RISCV_BSP_PCPU;
+    }
 
-  if (next_pcpu++ == 0)
-    return 0;
-  else
-    return PLT_PCPU_INVALID;
+  next_pcpu = 0;
+  return PLT_PCPU_INVALID;
 }
 
 void
@@ -674,13 +701,19 @@ plt_pcpu_nmi (int cpu)
 void
 plt_pcpu_start (unsigned cpu, unsigned long startaddr)
 {
-  /* TODO */
+  (void) startaddr;
+
+  if (cpu == RISCV_BSP_PCPU)
+    return;
+
+  warn ("RISC-V/SBI: ignoring start request for CPU%u; secondary harts "
+	"require SBI HSM/AP bootstrap support", cpu);
 }
 
 unsigned
 plt_pcpu_id (void)
 {
-  return 0;
+  return RISCV_BSP_PCPU;
 }
 
 bool

@@ -247,8 +247,10 @@ The architecture entry paths all expect a `struct hal_frame *` back from
   derives page-fault information from `scause` and the current PTE, and checks
   pending emulated IPIs before returning; and
 - ACPI and SBI platform code map timer/IPI/IRQ events to the generic
-  `hal_entry_*` dispatch points, with RISC-V external interrupt dispatch still
-  tracked as a separate platform gap.
+  `hal_entry_*` dispatch points; the current RISC-V PLIC baseline dispatches
+  supervisor external interrupt cause 9 for valid BSP PLIC source IDs, while
+  device-specific trigger/polarity metadata and secondary-hart interrupt
+  context use remain separate platform gaps.
 
 ### Example behavior
 

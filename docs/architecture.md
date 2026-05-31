@@ -45,7 +45,7 @@ The HAL abstracts CPU instructions, interrupt frames, page-table leaf entries, T
 The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and platform interrupt dispatch (`include/nux/plt.h`).
 
 - `libplt_acpi` expects APXH to provide a `PLT_ACPI` descriptor. It scans only the ACPI data it needs internally for MADT, LAPIC, IOAPIC, and HPET setup (`libplt_acpi/plt.c`, `acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`). It does not export raw ACPI tables, an ACPI table inventory, PCIe/MCFG records, DMAR/IVRS IOMMU records, or a public platform-fact substrate.
-- `libplt_sbi` expects `PLT_DTB`. It parses the DTB data it needs internally for `/cpus`, `timebase-frequency`, and PLIC information, implements SBI timer calls, and uses software interrupts plus `libnux` NMI emulation (`libplt_sbi/sbi.c`, `libnux/nmiemul.c`). Several SBI/PLIC paths are still TODO.
+- `libplt_sbi` expects `PLT_DTB`. It parses the DTB data it needs internally for `/cpus`, `timebase-frequency`, and PLIC information, implements SBI timer calls, exposes a BSP-only PCPU iterator contract, implements valid-source PLIC IRQ operations for the current BSP, and uses software interrupts plus `libnux` NMI emulation (`libplt_sbi/sbi.c`, `libnux/nmiemul.c`). Secondary harts remain internal DTB/PLIC metadata until a future SBI HSM/AP bootstrap design is reviewed.
 
 ### `libnux`
 
@@ -76,7 +76,7 @@ The PLT layer abstracts discovered hardware: CPUs, IRQs, IPIs/NMIs, timers, and 
 
 ## Current architectural gaps
 
-- RISC-V platform support has explicit TODOs for secondary CPU start, platform CPU enter, external IRQs, IRQ enable/disable/type/max, and EOI (`libhal_riscv/riscv.c`, `libplt_sbi/sbi.c`).
+- RISC-V platform support is intentionally BSP-only today: `plt_pcpu_iterate()` exposes CPU0 repeatably and `plt_pcpu_start()` does not start secondary harts. Full SMP still needs `libhal_riscv/riscv.c` AP start preparation plus an APXH boot-hart/SBI HSM bootstrap contract, and PLIC device trigger/polarity metadata remains future work.
 - x86 user-access hardening now enables CPUID-guarded SMAP per CPU and brackets user-copy windows with guarded `stac`/`clac`; SMEP remains a separate hardening audit.
 - Generic NUX PTE and entry-hook audits are tracked in `docs/nux-pte-entry-contracts.md`. Murgia/MH is one downstream pressure test, alongside other NUX workloads, but the historical root/leaf and mutate-input-frame TODOs do not authorize code changes without a demonstrated generic NUX problem.
 - Murgia/MH IOMMU support has a separate transparency requirement: Murgia should keep the same user-facing device/export API on IOMMU-present and no-IOMMU systems, while ACPI/DMAR/IVRS parsing and device policy remain above the NUX typed-platform-pointer boundary. Future NUX work must not expose raw ACPI tables or a public ACPI/platform fact inventory for that policy.

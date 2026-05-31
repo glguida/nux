@@ -257,6 +257,11 @@ BUILD=/tmp/the-nux-riscv64-smoke
 export BUILD
 ./tools/qemu-smoke-riscv64.sh
 
+# Optional RISC-V-only multi-hart smoke evidence. When QEMU_EXTRA_ARGS is set,
+# the harness launches qemu-system-riscv64 directly with the same kernel and
+# serial-marker checks instead of changing the shared example Makefile target.
+BUILD=/tmp/the-nux-riscv64-smp2-smoke QEMU_EXTRA_ARGS='-smp 2' ./tools/qemu-smoke-riscv64.sh
+
 # Manual equivalent of the harness:
 src=$PWD
 mkdir -p "$BUILD"
@@ -276,7 +281,9 @@ The riscv64 QEMU smoke treats timeout rc 124 as success only after the serial
 log has already reached OpenSBI/APXH/NUX/userspace markers, `SYSC0` through
 `SYSC6`, `UCTXT_SETA2`, `UADDR_MEMSET`, `UADDR_VALIDRANGE`,
 `KVA_ALLOC_FREE`, `User exited with error code: 42`, and repeated zero-valued
-`pnux_entry_pagefault` idle counters. The full default top-level `make` now
+`pnux_entry_pagefault` idle counters. `QEMU_EXTRA_ARGS` is intentionally scoped
+to this riscv64 harness; use it for smoke-only evidence such as `-smp 2`, not
+as a shared architecture-neutral QEMU policy. The full default top-level `make` now
 uses the same APXH `sbi` selection for riscv64. RISC-V EFI source remains
 present but is intentionally not in the default APXH subdir list because its
 platform contract is unresolved; manually building `apxh/efi` with Debian

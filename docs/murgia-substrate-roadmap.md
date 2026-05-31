@@ -61,9 +61,10 @@ below.
   mapping primitives, not device discovery or ACPI interpretation services.
 - **Interrupt/timer interfaces.** `include/nux/plt.h` provides platform CPU,
   IPI/NMI, IRQ type/enable/disable/max, timer counter/alarm, and EOI operations.
-  x86 has LAPIC/IOAPIC/HPET implementations; RISC-V has SBI timer calls and
-  software-interrupt-based NMI/IPI emulation but incomplete external IRQ/PLIC
-  wiring.
+  x86 has LAPIC/IOAPIC/HPET implementations; RISC-V has SBI timer calls,
+  software-interrupt-based NMI/IPI emulation, and an internal PLIC baseline for
+  valid source IDs on the current BSP. RISC-V secondary-hart startup and
+  device-specific trigger/polarity policy remain future work.
 - **Current smoke coverage.** `tools/qemu-smoke-i386.sh` performs the reviewed
   out-of-tree i386 configure/build/QEMU serial-marker smoke path.
   `tools/qemu-smoke-amd64.sh` captures the standardized local amd64 override
@@ -81,7 +82,7 @@ below.
 | Typed platform descriptor | Present as `struct apxh_pltdesc` with `PLT_ACPI`/`PLT_DTB` and `pltptr`. | Internal APXH-to-HAL/PLT handoff only; do not turn it into raw ACPI/DTB export or a table inventory. | `include/nux/apxh.h`, `apxh/multiboot/mb.c`, `apxh/efi/apxhefi/efi_md.c`, `apxh/sbi/md.c` |
 | Public kernel memory mapping primitives for MMIO | Present as low-level primitives, not a device model. | Kernels may use mapping primitives, but NUX does not infer PCI/ACPI/device policy for Murgia. | `include/nux/nux.h`, `libnux/kva.c`, `libnux/kmap.c`, `libnux/pfncache.c`, `include/nux/hal.h` |
 | x86 ACPI MADT/HPET handling | Present and internal. NUX loads ACPI tables needed by `libplt_acpi`, records/uses APIC and HPET today, and ignores several modern APIC variants. | Keep ACPI table use inside the selected platform library; do not publish a table inventory, MCFG/ECAM facts, or DMAR/IVRS facts as NUX API. | `libplt_acpi/acpi.c`, `libplt_acpi/plt.c`, `lapic.c`, `ioapic.c`, `hpet.c` |
-| RISC-V DTB and timer | Partially present. DTB `/cpus`, `timebase-frequency`, and PLIC contexts are read; timer calls exist. | DTB use remains internal to `libplt_sbi`; finish or bound PLIC/external IRQ and secondary CPU work separately. | `apxh/sbi/md.c`, `libplt_sbi/sbi.c`, `libhal_riscv/riscv.c` |
+| RISC-V DTB, timer, and BSP PLIC | Partially present. DTB `/cpus`, `timebase-frequency`, and PLIC contexts are read; timer calls and valid-source PLIC IRQ operations exist for the current BSP. The public PCPU contract intentionally exposes BSP CPU0 only. | DTB use remains internal to `libplt_sbi`; keep PLIC/device policy and future secondary-hart HSM work inside the platform/HAL boundary without exporting raw DTB facts. | `apxh/sbi/md.c`, `libplt_sbi/sbi.c`, `libhal_riscv/riscv.c` |
 | PCI/PCIe device discovery and ACPI MCFG / PCIe ECAM | Absent. No tracked source implementation of PCI bus walking, PCIe enumeration, MCFG parsing, or ECAM access was found. | Murgia/kernel/userspace owns PCIe/MCFG interpretation above the NUX platform pointer boundary. Do not make this depend on NUX exporting ACPI tables. | Negative tracked-source search; adjacent current code is only ACPI APIC/HPET in `libplt_acpi/acpi.c` |
 | MSI/MSI-X and device IRQ policy | Absent. No MSI/MSI-X controller or PCI capability handling is present. | NUX may improve internal IRQ-controller support, but device policy and PCI capability interpretation are not a NUX ACPI-fact API. | Negative tracked-source search for MSI/MSI-X implementation; current IRQ code is LAPIC/IOAPIC/GSI. |
 | Intel DMAR, AMD IVRS, IOMMU policy | Absent. No DMAR/IVRS table parser, IOMMU abstraction, or device-to-remapper policy is present. | Murgia owns IOMMU discovery/policy above the boundary unless a separate reviewed NUX primitive is requested; never export raw ACPI tables for it. | Negative tracked-source search for `DMAR`, `IVRS`, and `IOMMU`; `docs/murgia-integration.md` records the transparent user-facing ABI constraint. |
@@ -110,10 +111,11 @@ below.
 5. **Storage and filesystem work are not NUX capabilities.** No tracked AHCI,
    block, filesystem, or real-disk-image QEMU support exists. Murgia can plan
    those pieces without treating NUX as an ACPI/PCI fact provider.
-6. **RISC-V is not a complete modern hardware target yet.** DTB and timer use
-   exist inside `libplt_sbi`, but `libhal_riscv/riscv.c` and `libplt_sbi/sbi.c`
-   still have TODOs for secondary CPU startup, platform CPU enter, IRQ
-   type/enable/disable/max, EOI, and external interrupt dispatch.
+6. **RISC-V is not a complete modern hardware target yet.** DTB, timer, and a
+   BSP PLIC baseline exist inside `libplt_sbi`, but secondary CPU startup is
+   deliberately unsupported until an SBI HSM/AP bootstrap design is reviewed.
+   Device-specific interrupt trigger/polarity metadata and injected-device IRQ
+   smoke coverage also remain future work.
 
 ## Prioritized plan under the approved boundary
 

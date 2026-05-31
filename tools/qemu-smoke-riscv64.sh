@@ -9,6 +9,8 @@
 #   TIMEOUT          QEMU timeout seconds, default 30.
 #   JOBS             make parallelism, default nproc or 1.
 #   QEMU_LOG         QEMU serial/output log path, default $BUILD/qemu-riscv64-smoke.log.
+#   QEMU_EXTRA_ARGS  Optional extra qemu-system-riscv64 arguments. When set,
+#                    the harness launches qemu directly instead of `make qemu`.
 #   NUX_SRCDIR       Source checkout path, default parent of this script's tools/ dir.
 #   NUX_SMOKE_REUSE_BUILD=1 allows use of a non-empty BUILD directory.
 #   PAGEFAULT_IDLE_MIN minimum zero-valued pnux_entry_pagefault counter lines, default 2.
@@ -128,11 +130,28 @@ run_make_step example example_qemu
 [ -d "$builddir/example" ] || die "build did not create example directory: $builddir/example"
 [ -f "$builddir/example/example_qemu" ] || die "build did not create example_qemu: $builddir/example/example_qemu"
 
-note "running timeout --foreground ${TIMEOUT}s make qemu"
-set +e
-(cd "$builddir/example" && timeout --foreground "${TIMEOUT}s" make qemu >"$qemu_log" 2>&1)
-qemu_rc=$?
-set -e
+if [ -n "${QEMU_EXTRA_ARGS:-}" ]; then
+    note "running timeout --foreground ${TIMEOUT}s qemu-system-riscv64 -M virt -kernel example_qemu -serial mon:stdio -nographic $QEMU_EXTRA_ARGS"
+    set +e
+    (
+        cd "$builddir/example" || exit 127
+        set -- qemu-system-riscv64 -M virt -kernel example_qemu -serial mon:stdio -nographic
+        # Intentionally split QEMU_EXTRA_ARGS like a make variable so simple
+        # values such as `-smp 2` can be passed without touching shared QEMU
+        # makefile targets.
+        set -f
+        set -- "$@" $QEMU_EXTRA_ARGS
+        timeout --foreground "${TIMEOUT}s" "$@" >"$qemu_log" 2>&1
+    )
+    qemu_rc=$?
+    set -e
+else
+    note "running timeout --foreground ${TIMEOUT}s make qemu"
+    set +e
+    (cd "$builddir/example" && timeout --foreground "${TIMEOUT}s" make qemu >"$qemu_log" 2>&1)
+    qemu_rc=$?
+    set -e
+fi
 
 if [ "$qemu_rc" -ne 0 ] && [ "$qemu_rc" -ne 124 ]; then
     tail -n 180 "$qemu_log" >&2 || true
