@@ -62,7 +62,7 @@ void pae32_init_ap (void);
 void pae64_init (void);
 void pae64_init_ap (void);
 void pmap_init (void);
-void x86_useraccess_init (void);
+void x86_supervisor_hardening_init (void);
 void i386_init_done (void);
 void amd64_init_done (void);
 

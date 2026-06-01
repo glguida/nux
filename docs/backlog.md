@@ -88,9 +88,10 @@ This backlog is source-inspected only unless a verification result, task-log ite
 9. **Define the RISC-V EFI platform contract.**
    - Evidence: APXH EFI has RISC-V entry code but returns `PLT_ACPI`; the configured RISC-V platform library requires `PLT_DTB`.
    - Next slice: decide whether RISC-V EFI should use ACPI, DTB handoff, or be disabled until supported.
-10. **x86 SMAP user-access hardening is implemented; SMEP remains separate.**
-   - Current status: `libhal_x86/x86.c` detects CPUID leaf 7 SMAP support, `libhal_x86/i386/i386.c` and `libhal_x86/amd64/amd64.c` enable `CR4.SMAP` per CPU during HAL CPU entry, and `hal_useraccess_start()`/`hal_useraccess_end()` bracket generic user-copy windows with `stac`/`clac` only when the local CPU has SMAP enabled. x86 user-origin entry paths clear AC when SMAP is active so userspace cannot carry an open user-access window into the kernel.
-   - Remaining gap: `CR4.SMEP` is not enabled by this slice. SMEP should be evaluated separately with a focused audit of executable user mappings, entry/return paths, and AP bootstrap mappings.
+10. **x86 SMAP/SMEP supervisor hardening is implemented.**
+   - Current status: `libhal_x86/x86.c` detects CPUID leaf 7 SMEP and SMAP support, then enables `CR4.SMEP` and `CR4.SMAP` per CPU during HAL CPU entry only when the local CPU advertises each feature. `hal_useraccess_start()`/`hal_useraccess_end()` still bracket generic user-copy windows with `stac`/`clac` only when SMAP is enabled locally, and x86 user-origin entry paths clear AC when SMAP is active so userspace cannot carry an open user-access window into the kernel.
+   - SMEP audit status: i386 and amd64 AP bootstrap reset-vector mappings are supervisor KVA mappings, and the temporary low trampoline leaf entries are deliberately installed as `PTE_P | PTE_W` without `PTE_U` even though the helper reaches them through UMAP page-table machinery. Forced-SMEP QEMU smoke is the regression trigger for accidental CPL0 execution from user mappings.
+   - Follow-up trigger: reopen this item only if a future x86 feature intentionally executes supervisor code from a user (`PTE_U`) mapping, adds new trampoline mappings, or changes entry/return paths in a way that could bypass the guarded SMEP/SMAP setup.
 11. **Improve framebuffer correctness.**
     - Evidence: `libnux/framebuffer.c` has XXX comments for RGB masks, bounds checking, and rewrite need.
     - Next slice: honor framebuffer masks and clamp writes; add a QEMU visual/serial smoke check.

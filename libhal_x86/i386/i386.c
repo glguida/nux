@@ -91,13 +91,17 @@ hal_pcpu_init (void)
 
   pfn_put (pfn, start);
 
-  /* Set reset vector */
+  /* Set reset vector through a supervisor KVA mapping, not a user PTE. */
   reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
   kva_unmap ((void *) reset, 2);
 
-  /* pstart is in user address space: use kmap_ instead of hal_kmap */
+  /*
+     pstart is below pt_umap_maxaddr(), so use UMAP page-table machinery to
+     reach the temporary AP trampoline leaf.  The executable trampoline mapping
+     itself must stay supervisor-only for SMEP: no PTE_U is set here.
+   */
   l1p = umap_get_l1p (NULL, pstart, true);
   assert (l1p != L1P_INVALID);
   /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
@@ -162,7 +166,7 @@ hal_pcpu_enter (unsigned pcpuid)
   asm volatile ("ltr %%ax"::"a" (tss));
   asm volatile ("mov %%ax, %%fs"::"a" (fs));
 
-  x86_useraccess_init ();
+  x86_supervisor_hardening_init ();
 
   bsp_enter_called = 1;
 }

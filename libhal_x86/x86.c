@@ -115,6 +115,7 @@ write_cr4 (unsigned long r)
 }
 
 #define CPUID_EXTFEAT_LEAF 0x7
+#define CPUID_7_0_EBX_SMEP (1 << 7)
 #define CPUID_7_0_EBX_SMAP (1 << 20)
 
 static inline void
@@ -138,7 +139,7 @@ x86_cpuid (uint32_t leaf, uint32_t subleaf, uint32_t *eax, uint32_t *ebx,
 }
 
 static bool
-x86_cpu_supports_smap (void)
+x86_cpu_supports_extfeat_ebx (uint32_t bit)
 {
   uint32_t max_leaf;
   uint32_t eax, ebx, ecx, edx;
@@ -148,7 +149,19 @@ x86_cpu_supports_smap (void)
     return false;
 
   x86_cpuid (CPUID_EXTFEAT_LEAF, 0, &eax, &ebx, &ecx, &edx);
-  return !!(ebx & CPUID_7_0_EBX_SMAP);
+  return !!(ebx & bit);
+}
+
+static bool
+x86_cpu_supports_smep (void)
+{
+  return x86_cpu_supports_extfeat_ebx (CPUID_7_0_EBX_SMEP);
+}
+
+static bool
+x86_cpu_supports_smap (void)
+{
+  return x86_cpu_supports_extfeat_ebx (CPUID_7_0_EBX_SMAP);
 }
 
 static inline void
@@ -163,7 +176,25 @@ x86_clac (void)
   asm volatile (".byte 0x0f, 0x01, 0xca" ::: "memory", "cc");
 }
 
-void
+static void
+x86_smep_init (void)
+{
+  unsigned long cr4;
+
+  if (!x86_cpu_supports_smep ())
+    return;
+
+  cr4 = read_cr4 ();
+  if (!(cr4 & CR4_SMEP))
+    {
+      cr4 |= CR4_SMEP;
+      write_cr4 (cr4);
+    }
+
+  printf ("x86: SMEP enabled.\n");
+}
+
+static void
 x86_useraccess_init (void)
 {
   unsigned long cr4;
@@ -176,6 +207,13 @@ x86_useraccess_init (void)
     write_cr4 (cr4 | CR4_SMAP);
 
   x86_clac ();
+}
+
+void
+x86_supervisor_hardening_init (void)
+{
+  x86_smep_init ();
+  x86_useraccess_init ();
 }
 
 unsigned long
