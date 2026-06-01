@@ -129,9 +129,9 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Evidence: `tools/qemu-smoke-amd64.sh` uses the same out-of-tree build/log conventions for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf`, requires the host-prefixed x86_64 tools plus the stable i386 APXH compiler path, and verifies the reviewed amd64 APXH/NUX/IPI/userspace/syscall/`UCTXT_SETA2`/`UADDR_MEMSET`/`UMAP_BOUNDS`/`KMAP_UPDATE`/exit/idle markers before accepting timeout rc 124.
    - Evidence: `tools/qemu-smoke-riscv64.sh` repeats the verified SBI/DTB subset build from an out-of-tree directory, accepts RISC-V-only `QEMU_EXTRA_ARGS` for smoke evidence such as `-smp 2`, and verifies the OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/UMAP/KVA/KMAP/exit/idle markers before accepting timeout rc 124.
    - Follow-up trigger: add CI wiring or GDB/debug variants for i386/amd64/riscv64 only on runners with the required toolchains, initialized submodules, `make`, and QEMU.
-3. **Add GDB/debugging helpers.**
-   - Evidence: QEMU debug target exists but no GDB scripts were found.
-   - Next slice: add docs or scripts for loading symbols and connecting to `:1234`.
+3. **QEMU/GDB debugging helper is implemented.**
+   - Current status: `tools/qemu-debug.sh` prepares the existing `make qemu_dbg` flow from an out-of-tree build for `ARCH=i386`, `ARCH=amd64` multiboot, and `ARCH=riscv64` SBI/DTB. It writes a build-local GDB command file that loads `example/kern/example` kernel symbols, includes commented optional APXH/user payload symbol lines, and connects to QEMU's default `target remote :1234` stub.
+   - Follow-up trigger: reopen only for a source-backed debugging workflow gap such as CI/operator integration, richer architecture-specific symbol helpers, or a real debugger frontend. Do not vendor GDB or make GDB a NUX build dependency.
 4. **Document syscall ABI stability.**
    - Evidence: `libnux_user` wraps syscalls, but syscall numbers are example-local (`4096` putchar, `4097` exit in `example/kern/main.c`/`example/user/main.c`).
    - Next slice: either publish a minimal NUX syscall convention or explicitly state that kernels own their syscall ABI.

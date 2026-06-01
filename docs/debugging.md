@@ -1,8 +1,8 @@
 # Debugging and observability
 
-## QEMU debug target
+## QEMU/GDB debug helper
 
-The example tree provides two run targets in `example/Makefile.in`:
+The example tree still provides the raw run targets in `example/Makefile.in`:
 
 ```sh
 cd build/example
@@ -10,13 +10,35 @@ make qemu
 make qemu_dbg
 ```
 
-`qemu_dbg` appends `-S -s`, so QEMU starts paused and exposes a GDB stub on port 1234. The exact QEMU binary depends on `ARCH`:
+`qemu_dbg` appends `-S -s`, so QEMU starts paused and exposes a GDB stub on port 1234. The checked-in `tools/qemu-debug.sh` helper prepares that flow from a source checkout/worktree without requiring manual symbol notes. It uses an out-of-tree `BUILD`/`NUX_BUILD`, refuses to build inside the source checkout, supports `ARCH=i386`, `ARCH=amd64` multiboot, and `ARCH=riscv64` SBI/DTB, writes a GDB command file in the build directory, and prints both the `make qemu_dbg` command and the matching GDB invocation.
+
+Required external tools are the same build tools, initialized submodules, and target toolchains needed by the selected architecture's normal example build. QEMU is needed when running `make qemu_dbg` or `--run-qemu`. GDB is optional until the developer runs the printed attach command.
+
+Examples:
+
+```sh
+# Prepare a RISC-V SBI/DTB debug build and GDB command file.
+ARCH=riscv64 BUILD=/tmp/the-nux-riscv64-debug ./tools/qemu-debug.sh --prepare
+
+# Prepare i386 with the reviewed task-local toolchain path.
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ARCH=i386 BUILD=/tmp/the-nux-i386-debug ./tools/qemu-debug.sh --prepare
+
+# Prepare amd64 multiboot with the reviewed local smoke override.
+TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs-capabilities/toolchains/i686-unknown-elf/bin \
+  ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf \
+  BUILD=/tmp/the-nux-amd64-debug ./tools/qemu-debug.sh --prepare
+```
+
+After `--prepare`, start QEMU in one terminal with the printed `(cd .../example && make qemu_dbg)` command, then run the printed GDB command in another terminal. The generated command file loads the built `example/kern/example` kernel ELF symbols, connects with `target remote :1234`, and includes commented optional `add-symbol-file` lines for APXH and the user payload. Use `GDB=/path/to/gdb` to choose a debugger; by default the helper only prints `gdb` for x86 and `gdb-multiarch` for RISC-V. No GDB package or debugger frontend is committed to or required by NUX itself, and `--prepare` verification does not require GDB to be installed.
+
+For a bounded non-interactive QEMU diagnostic, use `--run-qemu`. The helper runs `make qemu_dbg` under `TIMEOUT`; because `-S -s` pauses before guest execution, timeout rc 124 is expected evidence that QEMU reached the debugger wait, not a smoke-marker pass.
+
+The exact QEMU binary still depends on `ARCH`:
 
 - `qemu-system-i386` for i386.
 - `qemu-system-x86_64` for amd64.
 - `qemu-system-riscv64 -M virt` for riscv64.
-
-No repository GDB script was found during this pass. A typical manual flow after `make qemu_dbg` is to start the matching target GDB, connect to `:1234`, load symbols for the built kernel, set breakpoints, then continue.
 
 ## Timeout-based smoke workflows
 
@@ -78,6 +100,6 @@ Kernel code uses `printf`, `info`, `warn`, `error`, `fatal`, and `debug` macros 
 ## Known debugging gaps
 
 - The checked-in i386, amd64, amd64 EFI, and riscv64 smoke harnesses are not wired into CI.
-- No checked-in GDB command files were found.
+- `tools/qemu-debug.sh` prepares command files for the existing QEMU GDB stub, but it is intentionally not a full debugger frontend and does not install or vendor GDB.
 - RISC-V panic output is less detailed than x86 panic output.
 - Framebuffer color packing and bounds checks have a serial `FRAMEBUFFER_MASK_BOUNDS` regression marker, but there is still no screenshot/visual comparison harness.

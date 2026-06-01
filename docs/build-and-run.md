@@ -353,7 +353,13 @@ cd build/example
 make qemu_dbg
 ```
 
-Attach GDB to QEMU's default stub on TCP port 1234.
+From a source checkout/worktree, prefer the checked-in helper when preparing a debug session:
+
+```sh
+ARCH=riscv64 BUILD=/tmp/the-nux-riscv64-debug ./tools/qemu-debug.sh --prepare
+```
+
+`tools/qemu-debug.sh` follows the out-of-tree `BUILD`/`NUX_BUILD`, `NUX_SRCDIR`, `TOOLBIN`, `JOBS`, and log-path conventions used by the smoke harnesses. It writes a GDB command file that loads the built kernel symbols and connects to QEMU's default stub with `target remote :1234`, then prints the exact GDB command to run. It supports `ARCH=i386`, `ARCH=amd64` multiboot, and `ARCH=riscv64` SBI/DTB. `--prepare` does not require GDB; set `GDB=...` only to change the printed command, and run the printed `make qemu_dbg` command in another terminal before attaching.
 
 ## Architecture notes
 
