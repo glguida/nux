@@ -18,7 +18,7 @@ The build is not self-contained. The tracked files show these requirements:
   - `ARCH=amd64` also needs a 32-bit toolchain for multiboot APXH; override with `TOOLCHAIN32` (`apxh/configure.ac`).
 - Initialized submodules (`.gitmodules`):
   - `contrib/dtc` for `libfdt` (`libplt_sbi`, APXH SBI, and top-level `libfdt`).
-  - `contrib/gnu-efi` for APXH EFI (`apxh/efi/Makefile.in`).
+  - `contrib/gnu-efi` for supported APXH EFI builds (`amd64` today; `apxh/efi/Makefile.in` intentionally rejects `riscv64`).
   - `contrib/binutils` for BFD/libiberty/zlib used by `tools/libbfd/Makefile.in` and `tools/objappend`.
 - QEMU if using the example `qemu` targets:
   - `qemu-system-i386` for `ARCH=i386`.
@@ -286,10 +286,11 @@ log has already reached OpenSBI/APXH/NUX/userspace markers, `SYSC0` through
 to this riscv64 harness; use it for smoke-only evidence such as `-smp 2`, not
 as a shared architecture-neutral QEMU policy. The full default top-level `make` now
 uses the same APXH `sbi` selection for riscv64. RISC-V EFI source remains
-present but is intentionally not in the default APXH subdir list because its
-platform contract is unresolved; manually building `apxh/efi` with Debian
-`riscv64-unknown-elf-ld` still fails with `-shared not supported` while linking
-`apxh.so`.
+present for future work, but it is intentionally unsupported and not in the
+default APXH subdir list: manual `make -C apxh/efi` in a riscv64 build fails
+early with an unsupported-contract message before the old misleading EFI link
+path, because current APXH EFI publishes `PLT_ACPI` while the configured
+RISC-V platform library expects `PLT_DTB`.
 
 ## Regenerating configure scripts
 
@@ -372,9 +373,9 @@ Attach GDB to QEMU's default stub on TCP port 1234.
 
 - Top-level `configure.ac` selects `libhal_riscv` + `libplt_sbi`.
 - APXH `configure` selects `sbi` for `riscv64`. The verified runtime path is SBI/DTB: build `libfdt`, `apxh/sbi`, `libhal_riscv`, `libplt_sbi`, `libnux`, `libnux_user`, `tools`, and `example example_qemu`, then run `qemu-system-riscv64 -M virt` through the generated `example` `make qemu` target. The default top-level `make` uses this APXH selection.
-- RISC-V EFI source remains under `apxh/efi`, but it is not in the default riscv64 APXH subdir list. Debian `riscv64-unknown-elf-ld` reports `-shared not supported` while linking `apxh.so` if that EFI target is built manually. Do not treat RISC-V EFI as verified by the SBI smoke.
+- RISC-V EFI source remains under `apxh/efi` for a future design, but it is not in the default riscv64 APXH subdir list and is intentionally unsupported today. A manual `make -C apxh/efi` from a riscv64 build fails early with an unsupported-contract message, and the RISC-V EFI source carries a compile-time guard, so it cannot silently hand `PLT_ACPI` to a `libplt_sbi`/`PLT_DTB` runtime. Do not treat RISC-V EFI as verified by the SBI smoke.
 - `libhal_riscv/exe.ld` uses the same high-half base, 512 GiB physmap/KVA/KMEM, 256 MiB PFN cache, and 32 MiB framebuffer mapping.
-- Treat RISC-V EFI as unverified: APXH EFI records `PLT_ACPI`, while `libplt_sbi` requires `PLT_DTB` (`apxh/efi/apxhefi/efi_md.c`, `libplt_sbi/sbi.c`).
+- Treat RISC-V EFI as unsupported/guarded: APXH EFI currently supports ACPI descriptors for x86 EFI, while `libplt_sbi` requires `PLT_DTB` (`apxh/efi/Makefile.in`, `apxh/efi/apxhefi/efi_md.c`, `libplt_sbi/sbi.c`). A real RISC-V EFI path must first choose and verify an ACPI-vs-DTB descriptor plus linker/toolchain contract.
 
 ## Verification history and current container status
 
@@ -482,9 +483,9 @@ follow-through is:
 - i386 smoke remains passing with the stable external i386 `TOOLBIN`; the follow-up verification recorded `tools/qemu-smoke-i386.sh` rc 0.
 - riscv64 default target tools are present from the bounded Debian package path: `binutils-riscv64-unknown-elf` 2.44-3+7+b1, `gcc-riscv64-unknown-elf` 14.2.0+19, and `qemu-system-misc` 1:10.0.8+ds-0+deb13u1+b2, with required dependencies `opensbi` 1.6-1, `qemu-system-riscv`, and `qemu-system-s390x`. With initialized submodules, `ARCH=riscv64 ./tools/build-preflight.sh` passes.
 - The verified riscv64 runtime path is the explicit SBI/DTB subset build used by `tools/qemu-smoke-riscv64.sh`; bounded QEMU reaches OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA markers and repeated zero-valued `pnux_entry_pagefault` idle counters before the expected timeout.
-- Default full riscv64 top-level `make` uses the APXH `sbi` path; RISC-V EFI remains unverified and unselected by default after reproducing the old default EFI subdir selection failure: Debian `riscv64-unknown-elf-ld: -shared not supported` while linking `apxh.so`.
+- Default full riscv64 top-level `make` uses the APXH `sbi` path; RISC-V EFI is explicitly unsupported and unselected by default. Manual riscv64 `make -C apxh/efi` fails early with the checked-in unsupported-contract guard before the old misleading `riscv64-unknown-elf-ld: -shared not supported` EFI link path.
 - amd64 EFI now has local OVMF runtime coverage rather than a missing-firmware or ACPI/KVA blocker: `ovmf 2025.02-8+deb13u1` is installed outside the repository, the checked-in harness reaches APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, `UADDR_MEMSET`, `KMAP_UPDATE`, exit, and idle counter markers under OVMF from a clean worktree. The EFI build uses build-local gnu-efi objects and the harness fails early on tracked dirty `contrib/gnu-efi` sources unless explicitly overridden.
 
 Authoritative follow-through logs are under `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-review/workspace/review-logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-build-smoke-followthrough-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-impl/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-review/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-runtime-page-fault-followup-commit/workspace/logs`, `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-riscv64-smoke-tooling-followthrough-impl/workspace/logs`, and `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/jobs/the-nux-amd64-default-toolchain-readme-build-impl/workspace/logs`.
 
-The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. The later README toolchain follow-through provisioned a real default-prefix cache from a local `gcc_toolchain_build` checkout at commit `eecef0929616a96517a83dab988a8429ad8c62d8`, copied its `install/` artifact into `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build`, and verified default `ARCH=amd64` preflight, configure, `make -j1`, direct bounded `make qemu`, and `tools/qemu-smoke-amd64.sh` forced to `TOOLCHAIN=amd64-unknown-elf TOOLCHAIN32=i686-unknown-elf`. The override smoke path remains verified separately. The riscv64 path is runnable in the current container through the checked-in SBI/DTB smoke harness; remaining open items are CI/toolchain-cache policy for checked-in smoke harnesses and a separate policy/toolchain decision before treating RISC-V APXH EFI as a verified path.
+The architecture/toolchain follow-through standardized the reviewed `x86_64-linux-gnu`/`i686-unknown-elf` override as the local amd64 smoke path and added `tools/qemu-smoke-amd64.sh`. The later README toolchain follow-through provisioned a real default-prefix cache from a local `gcc_toolchain_build` checkout at commit `eecef0929616a96517a83dab988a8429ad8c62d8`, copied its `install/` artifact into `/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-amd64-default-toolchain-policy/toolchains/gcc_toolchain_build`, and verified default `ARCH=amd64` preflight, configure, `make -j1`, direct bounded `make qemu`, and `tools/qemu-smoke-amd64.sh` forced to `TOOLCHAIN=amd64-unknown-elf TOOLCHAIN32=i686-unknown-elf`. The override smoke path remains verified separately. The riscv64 path is runnable in the current container through the checked-in SBI/DTB smoke harness; remaining open items are CI/toolchain-cache policy for checked-in smoke harnesses and a future, explicit RISC-V EFI descriptor/toolchain design before removing the current unsupported guard.

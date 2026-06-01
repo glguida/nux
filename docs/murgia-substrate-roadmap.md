@@ -40,17 +40,21 @@ below.
   riscv64 SBI/DTB path have reviewed smoke coverage. amd64 EFI also has
   reviewed default-prefix OVMF smoke coverage from a clean worktree through the
   normal APXH/NUX, IPI, userspace, syscall, exit, and idle markers; RISC-V EFI
-  still needs separate platform-contract/toolchain verification.
+  is intentionally guarded unsupported until a reviewed descriptor/toolchain
+  contract exists.
 - **APXH boot contract.** APXH writes `struct apxh_bootinfo`,
   `struct apxh_region`, `struct apxh_stree`, and `struct apxh_pltdesc` from
   `include/nux/apxh.h`. Common APXH code handles APXH ELF program headers for
   boot info, S-tree, physical-memory regions, PFN map, physmap, framebuffer,
   and page-table allocation areas in `apxh/src/elf.c` and `apxh/src/main.c`.
 - **Typed platform pointer handoff.** The x86 multiboot path fills a `PLT_ACPI`
-  descriptor with an RSDP pointer (`apxh/multiboot/mb.c`), EFI records an RSDP
-  as `PLT_ACPI` (`apxh/efi/efi-main.c`, `apxh/efi/apxhefi/efi_md.c`), and SBI
-  records a DTB as `PLT_DTB` (`apxh/sbi/md.c`). The descriptor is a private
-  APXH-to-HAL/PLT boot handoff, not a Murgia-visible ACPI or DTB export API.
+  descriptor with an RSDP pointer (`apxh/multiboot/mb.c`), supported EFI paths
+  record an RSDP as `PLT_ACPI` (`apxh/efi/efi-main.c`,
+  `apxh/efi/apxhefi/efi_md.c`), and SBI records a DTB as `PLT_DTB`
+  (`apxh/sbi/md.c`). The RISC-V EFI source path is guarded unsupported so it
+  cannot hand `PLT_ACPI` to the `libplt_sbi`/`PLT_DTB` runtime without a future
+  reviewed descriptor contract. The descriptor is a private APXH-to-HAL/PLT
+  boot handoff, not a Murgia-visible ACPI or DTB export API.
 - **Internal platform consumption.** `libplt_acpi/plt.c` accepts only
   `PLT_ACPI`, maps the RSDP internally, and initializes the x86 APIC/IOAPIC/HPET
   platform stack. `libplt_sbi/sbi.c` accepts only `PLT_DTB` and maps the DTB

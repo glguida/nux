@@ -58,7 +58,9 @@ APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, `UADDR_MEMSET`, `KMAP_UPDATE`,
 the expected timeout. The EFI build uses build-local `gnu-efi` objects rather
 than source-tree generated submodule artifacts, and the harness stops early on
 tracked dirty `contrib/gnu-efi` sources unless explicitly overridden. RISC-V EFI
-platform-contract verification remains open; see
+is intentionally guarded as unsupported: configured riscv64 NUX uses the
+APXH SBI/DTB path, not APXH EFI/`PLT_ACPI`, until a reviewed RISC-V EFI
+platform-descriptor and linker/toolchain contract exists. See
 [docs/hardware-support.md](docs/hardware-support.md).
 
 ## Documentation
@@ -139,12 +141,13 @@ or
 
 For `ARCH=riscv64`, APXH configure selects `sbi` by default. The SBI/DTB
 path is the coherent configured runtime path and is the path used by the
-default top-level `make`. RISC-V EFI source exists under `apxh/efi` and uses
-`gnu-efi`, but it is not selected by default because its platform-descriptor
-contract and full build/runtime flow are unverified. Debian
-`riscv64-unknown-elf-ld` reports `-shared not supported` when manually building
-that EFI target; treat EFI as a separate portability/configure-policy decision
-rather than hand-editing generated build files. See
+default top-level `make`. RISC-V EFI source remains under `apxh/efi` for a
+future design, but it is not a supported/manual build path today: the EFI
+makefile and RISC-V EFI source now fail early with an unsupported-contract
+message because APXH EFI currently publishes ACPI descriptors while the
+configured RISC-V platform library expects `PLT_DTB`. Treat RISC-V EFI as a
+separate portability/configure-policy decision and design the descriptor plus
+linker/toolchain contract before enabling it. See
 [docs/hardware-support.md](docs/hardware-support.md) and
 [docs/backlog.md](docs/backlog.md).
 

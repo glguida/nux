@@ -14,8 +14,9 @@ endif
 
 ifeq (@MACHINE@,riscv64)
 ARCH=riscv64
-OBJCOPY_FLAGS += -O binary
-LDFLAGS += --defsym=EFI_SUBSYSTEM=0xa
+ifneq ($(MAKECMDGOALS),clean)
+$(error RISC-V APXH EFI is intentionally unsupported: configured riscv64 NUX uses APXH SBI with PLT_DTB, while APXH EFI currently publishes PLT_ACPI. Use the ARCH=riscv64 default SBI path until a reviewed RISC-V EFI descriptor/toolchain contract exists.)
+endif
 endif
 
 NUXROOT 		= $(abspath $(SRCROOT)/..)

@@ -7,6 +7,10 @@
 
 #include "project.h"
 
+#if EC_MACHINE_RISCV64
+#error "APXH EFI is unsupported for riscv64: configured RISC-V NUX uses APXH SBI with PLT_DTB; add a reviewed RISC-V EFI descriptor/toolchain contract before enabling this path."
+#endif
+
 #define BOOTINFO_REGIONS_MAX 1024
 
 static void *elf_kernel_payload, *elf_user_payload;
@@ -179,7 +183,8 @@ md_getframebuffer (void)
 struct apxh_pltdesc *
 md_getpltdesc (void)
 {
-  /* Only ACPI supported. */
+  /* EFI currently supports ACPI platform descriptors only.  RISC-V EFI is
+     guarded above because configured RISC-V NUX uses APXH SBI/PLT_DTB. */
   pltdesc.type = PLT_ACPI;
   pltdesc.pltptr = (uint64_t) (uintptr_t) efi_rsdp;
   return &pltdesc;
