@@ -99,9 +99,9 @@ This backlog is source-inspected only unless a verification result, task-log ite
 12. **Clarify i386 TLS support.**
     - Evidence: `libhal_x86/i386/sys_entry.c` states `hal_frame_settls()` is ignored because i386 TLS needs LDT support.
     - Next slice: document as unsupported or add LDT/TLS support.
-13. **ACPI/x86 hardware expansion.**
-    - Evidence: `libplt_acpi/acpi.c` ignores LSAPIC, x2APIC, IOSAPIC, and LX2APICNMI entries.
-    - Next slice: prioritize x2APIC if modern hardware support is a near-term goal.
+13. **ACPI/x86 MADT parser hardening is implemented; modern APIC expansion remains.**
+    - Current status: `libplt_acpi/acpitbl.h` models MADT Interrupt Source Override GSI as the ACPI-specified 32-bit field, so `flags` is read from the correct packed offset. `libplt_acpi/acpi.c` now guards absent root/MADT table loads and validates MADT record common headers, zero lengths, remaining payload length, and known record minimum sizes before dereferencing.
+    - Remaining gap: LSAPIC, x2APIC, IOSAPIC, and LX2APICNMI entries are still ignored. Prioritize x2APIC if modern x86 hardware support is a near-term goal.
 14. **Track the Murgia modern-hardware boundary without a NUX ACPI fact substrate.**
     - Evidence: task-log comment `2026-05-29T21:51:15Z` records the Murgia/MH design constraint that IOMMU support should stay transparent beneath the existing `hwdev`/`sys_export`/`dexport` device/export semantics. The corrected source-backed inventory in `docs/murgia-substrate-roadmap.md` records current NUX capabilities, gaps, and the approved APXH typed-platform-pointer/HAL boundary.
     - Current behavior: tracked x86 platform code scans ACPI RSDP/RSDT/XSDT internally for MADT and HPET, then initializes LAPIC, IOAPIC, and HPET support. Public NUX primitives already include PFN/KVA/KMAP/UMAP and `kva_physmap()` for CPU-side physical/MMIO mappings. A source/doc search found no current PCI bus enumeration, ACPI MCFG/PCIe ECAM discovery, MSI/MSI-X support, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping map/unmap API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness.
@@ -119,10 +119,11 @@ This backlog is source-inspected only unless a verification result, task-log ite
 1. **Preserve and analyze `PORTING_0_EM` as a binary artifact, not documentation.**
    - Evidence: task-log comment `2026-05-29T19:19:31Z` identifies `/home/glguida/the_nux/PORTING_0_EM` as a base-checkout binary/ELF artifact to preserve. A local magic-byte check in this fix job read `7f454c46` (`ELF`) and size `303904` bytes; `file(1)` was unavailable in the container.
    - Next slice: if analysis is authorized, inspect it with appropriate binary tools (`readelf`, `objdump`, or equivalent) and record metadata separately. Do not edit it, delete it, or treat it as Markdown/source documentation.
-2. **Checked-in automated i386 and amd64 smoke harnesses are implemented.**
+2. **Checked-in automated i386, amd64, and riscv64 smoke harnesses are implemented.**
    - Evidence: `tools/qemu-smoke-i386.sh` runs from a source checkout/worktree, uses an out-of-tree build directory (defaulting under `/tmp`, overridable with `BUILD` or `NUX_BUILD`), prepends `TOOLBIN` when provided, runs `configure ARCH=i386`, `make`, and bounded `make qemu`, captures QEMU serial output, and verifies the reviewed APXH/NUX/userspace/regression markers before accepting timeout rc 124.
    - Evidence: `tools/qemu-smoke-amd64.sh` uses the same out-of-tree build/log conventions for `ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu TOOLCHAIN32=i686-unknown-elf`, requires the host-prefixed x86_64 tools plus the stable i386 APXH compiler path, and verifies the reviewed amd64 APXH/NUX/IPI/userspace/syscall/`UCTXT_SETA2`/`UADDR_MEMSET`/`KMAP_UPDATE`/exit/idle markers before accepting timeout rc 124.
-   - Follow-up trigger: add CI wiring or GDB/debug variants for i386/amd64 only on runners with the required toolchains, initialized submodules, `make`, and QEMU. Add an analogous riscv64 harness only after a RISC-V target-toolchain and `qemu-system-riscv64` are available.
+   - Evidence: `tools/qemu-smoke-riscv64.sh` repeats the verified SBI/DTB subset build from an out-of-tree directory, accepts RISC-V-only `QEMU_EXTRA_ARGS` for smoke evidence such as `-smp 2`, and verifies the OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA/KMAP/exit/idle markers before accepting timeout rc 124.
+   - Follow-up trigger: add CI wiring or GDB/debug variants for i386/amd64/riscv64 only on runners with the required toolchains, initialized submodules, `make`, and QEMU.
 3. **Add GDB/debugging helpers.**
    - Evidence: QEMU debug target exists but no GDB scripts were found.
    - Next slice: add docs or scripts for loading symbols and connecting to `:1234`.
@@ -144,8 +145,6 @@ A tracked-file grep excluding `contrib` found TODO/XXX items in:
 - `apxh/efi/efi-main.c`
 - `libhal_riscv/riscv.c`
 - `libhal_x86/i386/i386.c`
-- `libhal_x86/x86.c`
-- `libnux/framebuffer.c`
 - `libnux/kmem.c`
 - `libnux/kva.c`
 - `libplt_acpi/lapic.c`

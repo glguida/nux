@@ -38,6 +38,12 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
 
 `tools/qemu-smoke-amd64.sh` uses the same out-of-tree build, log, timeout, `BUILD`/`NUX_BUILD`, `TIMEOUT`, `JOBS`, and `NUX_SMOKE_REUSE_BUILD` conventions as the i386 harness. It accepts timeout rc 124 only after the reviewed amd64 markers appear, including `IPI!`, userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` and `UADDR_MEMSET` kernel/user markers, the `KMAP_UPDATE` marker, `User exited with error code: 42`, no unexpected kernel page fault, and repeated zero-valued `pnux_entry_pagefault` idle counter lines.
 
+The checked-in riscv64 harness is runnable in this container with the reviewed Debian `riscv64-unknown-elf-*` tools, initialized submodules, and `qemu-system-riscv64`. It builds the verified SBI/DTB subset from an out-of-tree directory and accepts timeout rc 124 only after the OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA/KMAP/exit/idle markers appear:
+
+```sh
+./tools/qemu-smoke-riscv64.sh
+```
+
 ## Logging paths
 
 Kernel code uses `printf`, `info`, `warn`, `error`, `fatal`, and `debug` macros from `include/nux/nux.h`. `putchar` is routed to `hal_putchar` by `libnux/ec.c`.
@@ -71,7 +77,7 @@ Kernel code uses `printf`, `info`, `warn`, `error`, `fatal`, and `debug` macros 
 
 ## Known debugging gaps
 
-- The checked-in i386 and amd64 smoke harnesses are not wired into CI; riscv64 still lacks a runnable harness until its target tools and `qemu-system-riscv64` are available.
+- The checked-in i386, amd64, amd64 EFI, and riscv64 smoke harnesses are not wired into CI.
 - No checked-in GDB command files were found.
 - RISC-V panic output is less detailed than x86 panic output.
-- `libnux/framebuffer.c` contains explicit TODO/XXX comments about RGB masks and bounds checks, so framebuffer debugging output may be fragile.
+- Framebuffer color packing and bounds checks have a serial `FRAMEBUFFER_MASK_BOUNDS` regression marker, but there is still no screenshot/visual comparison harness.

@@ -18,11 +18,11 @@ Current implemented areas:
 - i386 PAE paging and a 3 GiB user UMAP: `libhal_x86/i386/pae32.c`, `libhal_x86/include/nux/hal_config_i386.h`.
 - amd64 4-level paging and 42-bit user UMAP by default: `libhal_x86/amd64/pae64.c`, `libhal_x86/include/nux/hal_config_amd64.h`.
 - i386 and amd64 secondary CPU bootstrap using LAPIC INIT/SIPI through `libplt_acpi/lapic.c` and HAL trampoline code in `libhal_x86/i386/i386.c`, `libhal_x86/amd64/amd64.c`.
-- Internal ACPI table loading for MADT/HPET setup, LAPIC, IOAPIC, GSI routing, and HPET timer: `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`. This consumes the `PLT_ACPI` platform descriptor inside `libplt_acpi`; it is not a raw ACPI table export.
+- Internal ACPI table loading for MADT/HPET setup, LAPIC, IOAPIC, GSI routing, and HPET timer: `libplt_acpi/acpi.c`, `lapic.c`, `ioapic.c`, `hpet.c`. MADT Interrupt Source Override records use the ACPI 32-bit GSI field, and MADT entry traversal validates common headers, zero lengths, remaining payload length, and known record minimum sizes before dereferencing. This consumes the `PLT_ACPI` platform descriptor inside `libplt_acpi`; it is not a raw ACPI table export.
 
 Known gaps:
 
-- x2APIC, LSAPIC, IOSAPIC entries are explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`).
+- x2APIC, LSAPIC, IOSAPIC entries are still explicitly ignored by the ACPI scanner (`libplt_acpi/acpi.c`); the current hardening does not implement modern APIC variants.
 - No tracked ACPI MCFG/PCIe discovery, PCI bus enumeration, MSI/MSI-X, Intel DMAR or AMD IVRS parsing, IOMMU abstraction, DMA-remapping API, AHCI/storage driver, filesystem, or real-disk-image QEMU harness was found in the current tracked source/doc search. Murgia/kernel/userspace owns that ACPI/device policy above the existing NUX typed-platform-pointer boundary; do not treat it as a future NUX ACPI export or platform-fact inventory.
 - x86 supervisor hardening is SMEP/SMAP-aware: CPUID leaf 7 gates per-CPU `CR4.SMEP` and `CR4.SMAP` enablement, `hal_useraccess_start/end` use `stac`/`clac` only after SMAP is enabled locally, and user-origin entry clears AC when SMAP is active. The i386/amd64 AP bootstrap audit keeps reset-vector physmaps supervisor-only and installs temporary low trampoline leaf entries without `PTE_U`, so forced-SMEP smoke coverage can catch accidental supervisor execution from user mappings.
 - i386 TLS setup is explicitly ignored in `hal_frame_settls` (`libhal_x86/i386/sys_entry.c`).

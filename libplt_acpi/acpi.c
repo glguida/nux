@@ -27,7 +27,26 @@ load_table (paddr_t pa)
   uint8_t sum, *ptr;
   struct acpi_thdr *tbl;
 
+  if (pa == 0)
+    {
+      warn ("ACPI table at PA 0 is absent");
+      return NULL;
+    }
+
   tbl = (struct acpi_thdr *) kva_physmap (pa, ACPI_MAX_TBL, HAL_PTE_P);
+  if (tbl == NULL)
+    {
+      error ("Could not map ACPI table at pa %" PRIx64, pa);
+      return NULL;
+    }
+
+  if (tbl->length < sizeof (*tbl))
+    {
+      warn ("ACPI table %4.4s length %u < header length %u",
+	    tbl->signature, (unsigned) tbl->length, (unsigned) sizeof (*tbl));
+      kva_unmap (tbl, ACPI_MAX_TBL);
+      return NULL;
+    }
 
   if (tbl->length >= ACPI_MAX_TBL)
     {
@@ -73,15 +92,26 @@ print_table (struct acpi_thdr *tbl)
 void
 acpi_init (paddr_t root)
 {
-  void *ptr;
+  uint8_t *ptr;
   size_t entrylen;
   int64_t length;
   paddr_t pasdt;
   struct acpi_rsdp_thdr *rsdp;
   struct acpi_thdr *roottable, *sdtable;
 
+  if (root == 0)
+    {
+      error ("No ACPI RSDP physical address");
+      return;
+    }
+
   rsdp =
     (struct acpi_rsdp_thdr *) kva_physmap (root, ACPI_MAX_TBL, HAL_PTE_P);
+  if (rsdp == NULL)
+    {
+      error ("Could not map ACPI RSDP at pa %" PRIx64, root);
+      return;
+    }
 
   info ("TABLE: '%8.8s' [%6.6s] rev: %d", rsdp->signature, rsdp->oemid,
 	rsdp->revision);
@@ -103,14 +133,38 @@ acpi_init (paddr_t root)
 
   pa_root_table = pasdt;
   roottable = load_table (pasdt);
+  if (roottable == NULL)
+    {
+      error ("Could not load ACPI root table.");
+      return;
+    }
+  if (roottable->length > ACPI_MAX_TBL)
+    {
+      error ("ACPI root table length %u > mapped limit %u",
+	     (unsigned) roottable->length, (unsigned) ACPI_MAX_TBL);
+      unload_table (roottable);
+      return;
+    }
 
   /* Iterate through ACPI tables. */
-  ptr = (void *) (roottable + 1);
+  ptr = (uint8_t *) (roottable + 1);
   length = (int64_t) roottable->length - sizeof (*roottable);
   while (length > 0)
     {
+      if (length < (int64_t) entrylen)
+	{
+	  warn ("ACPI root table has %d trailing byte(s)", (int) length);
+	  break;
+	}
+
       pasdt = entrylen == 8 ? *(uint64_t *) ptr : *(uint32_t *) ptr;
       sdtable = load_table (pasdt);
+      if (sdtable == NULL)
+	{
+	  length -= entrylen;
+	  ptr += entrylen;
+	  continue;
+	}
 
       print_table (sdtable);
 
@@ -131,10 +185,74 @@ acpi_init (paddr_t root)
   debug ("HPET table at pa %" PRIx64, pa_hpet_table);
 }
 
+#define ACPI_MADT_ENTRY_HEADER_LEN 2
+
+static const char *
+madt_entry_name (uint8_t type)
+{
+  switch (type)
+    {
+    case ACPI_MADT_TYPE_LAPIC:
+      return "LAPIC";
+    case ACPI_MADT_TYPE_IOAPIC:
+      return "IOAPIC";
+    case ACPI_MADT_TYPE_INTOVERRIDE:
+      return "INTOVR";
+    case ACPI_MADT_TYPE_LAPICNMI:
+      return "LAPICNMI";
+    case ACPI_MADT_TYPE_LAPICOVERRIDE:
+      return "LAPICOVR";
+    case ACPI_MADT_TYPE_LSAPIC:
+      return "LSAPIC";
+    case ACPI_MADT_TYPE_LX2APIC:
+      return "LX2APIC";
+    case ACPI_MADT_TYPE_IOSAPIC:
+      return "IOSAPIC";
+    case ACPI_MADT_TYPE_LX2APICNMI:
+      return "LX2APICNMI";
+    default:
+      return "UNKNOWN";
+    }
+}
+
+static unsigned
+madt_entry_min_length (uint8_t type)
+{
+  switch (type)
+    {
+    case ACPI_MADT_TYPE_LAPIC:
+      return sizeof (struct acpi_madt_lapic);
+    case ACPI_MADT_TYPE_IOAPIC:
+      return sizeof (struct acpi_madt_ioapic);
+    case ACPI_MADT_TYPE_INTOVERRIDE:
+      return sizeof (struct acpi_madt_intoverride);
+    case ACPI_MADT_TYPE_LAPICNMI:
+      return sizeof (struct acpi_madt_lapicnmi);
+    case ACPI_MADT_TYPE_LAPICOVERRIDE:
+      return sizeof (struct acpi_madt_lapicoverride);
+    default:
+      return ACPI_MADT_ENTRY_HEADER_LEN;
+    }
+}
+
+static bool
+madt_entry_is_long_enough (uint8_t type, unsigned entry_len)
+{
+  unsigned min_len = madt_entry_min_length (type);
+
+  if (entry_len < min_len)
+    {
+      warn ("ACPI MADT %s entry length %u < %u; skipping",
+	    madt_entry_name (type), entry_len, min_len);
+      return false;
+    }
+  return true;
+}
+
 void
 acpi_madt_scan (void)
 {
-  int len;
+  unsigned len, entry_len;
   unsigned flags, nlapic = 0, nioapic = 0;
   uint8_t type;
   paddr_t lapic_addr;
@@ -155,19 +273,59 @@ acpi_madt_scan (void)
 		len = acpi_madt->hdr.length - sizeof(*acpi_madt);	\
 		_.ptr = (uint8_t *) acpi_madt + sizeof(*acpi_madt);	\
 		while (len > 0) {					\
-			type = *_.ptr;					\
+			if (len < ACPI_MADT_ENTRY_HEADER_LEN) {		\
+				warn ("ACPI MADT truncated entry header (%u byte(s) remain); stopping scan", len); \
+				break;					\
+			}						\
+			type = _.ptr[0];				\
+			entry_len = _.ptr[1];				\
+			if (entry_len == 0) {				\
+				warn ("ACPI MADT zero-length entry; stopping scan"); \
+				break;					\
+			}						\
+			if (entry_len > len) {				\
+				warn ("ACPI MADT %s entry length %u exceeds remaining payload %u; stopping scan", \
+				      madt_entry_name (type), entry_len, len); \
+				break;					\
+			}						\
+			if (!madt_entry_is_long_enough (type, entry_len)) { \
+				len -= entry_len;			\
+				_.ptr += entry_len;			\
+				continue;				\
+			}						\
 			switch (type) {					\
 				_cases;					\
 			}						\
-			len -= *(_.ptr + 1);				\
-			_.ptr += *(_.ptr + 1);				\
+			len -= entry_len;				\
+			_.ptr += entry_len;				\
 		}							\
 	} while (0)
+
+  if (pa_apic_table == 0)
+    {
+      error ("No ACPI MADT table found.");
+      return;
+    }
 
   acpi_madt = load_table (pa_apic_table);
   if (acpi_madt == NULL)
     {
       error ("Could not load ACPI MADT Table.");
+      return;
+    }
+  if (acpi_madt->hdr.length < sizeof (*acpi_madt))
+    {
+      warn ("ACPI MADT length %u < header length %u; skipping",
+	    (unsigned) acpi_madt->hdr.length,
+	    (unsigned) sizeof (*acpi_madt));
+      unload_table (acpi_madt);
+      return;
+    }
+  if (acpi_madt->hdr.length > ACPI_MAX_TBL)
+    {
+      warn ("ACPI MADT length %u > mapped limit %u; skipping",
+	    (unsigned) acpi_madt->hdr.length, (unsigned) ACPI_MAX_TBL);
+      unload_table (acpi_madt);
       return;
     }
 
@@ -255,6 +413,13 @@ acpi_madt_scan (void)
     });
   /* *INDENT-ON* */
 
+  if (nioapic == 0)
+    {
+      warn ("ACPI MADT has no IOAPIC entries; skipping GSI setup");
+      unload_table (acpi_madt);
+      return;
+    }
+
   gsi_init ();
   /* *INDENT-OFF* */
   madt_foreach({
@@ -269,8 +434,9 @@ acpi_madt_scan (void)
 	warn ("LX2APICNMI ENTRY IGNORED");
 	break;
       case ACPI_MADT_TYPE_INTOVERRIDE:
-	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
-	       _.intovr->bus, _.intovr->irq, _.intovr->gsi, _.intovr->flags);
+	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02u FL: %04x",
+	       _.intovr->bus, _.intovr->irq, (unsigned) _.intovr->gsi,
+	       _.intovr->flags);
 	flags = _.intovr->flags;
 	switch (flags & ACPI_MADT_TRIGGER_MASK) {
 	case ACPI_MADT_TRIGGER_RESERVED:

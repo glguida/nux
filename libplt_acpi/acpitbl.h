@@ -112,7 +112,7 @@ struct acpi_madt_intoverride
   uint8_t length;
   uint8_t bus;
   uint8_t irq;
-  uint8_t gsi;
+  uint32_t gsi;
 #define ACPI_MADT_TRIGGER_MASK     0x0C
 #define ACPI_MADT_TRIGGER_CONFORMS 0x00
 #define ACPI_MADT_TRIGGER_EDGE     0x04
