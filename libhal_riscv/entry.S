@@ -57,7 +57,7 @@ _early_intrentry:
 	j _hal_entry
 	
 
-/* Frame-controlled HSTATUS bits. */
+/* Frame-controlled SSTATUS bits. */
 #define SSTATUS_FMASK (SSTATUS_SPIE | SSTATUS_SPP)
 	
 #define TPOFF_INTRSP 0
@@ -137,15 +137,15 @@ _intr_entry:
 	call _hal_entry
 	
 	addi a0, a0, 36*8
-	/* SSTATUS */
+	/* SSTATUS: only SPIE/SPP are frame-controlled for sret. */
 	RESTORE_REG(36, t0)
 	li t1, SSTATUS_FMASK
 	and t2, t0, t1
 	csrr t0, sstatus
-	neg t1, t1
+	xori t1, t1, -1
 	and t0, t0, t1
 	or t0, t0, t2
-	csrw sstatus, t2
+	csrw sstatus, t0
 	/* SIE */
 	RESTORE_REG(35, t0)
 	csrw sie, t0
