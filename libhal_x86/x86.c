@@ -304,7 +304,7 @@ hal_putchar (int c)
 {
 
   if (use_fb)
-    framebuffer_putc (c, 0xe0e0e0);
+    framebuffer_putc (c, framebuffer_color (0xe0, 0xe0, 0xe0));
   else
     vga_putchar (c);
 

@@ -92,9 +92,10 @@ This backlog is source-inspected only unless a verification result, task-log ite
    - Current status: `libhal_x86/x86.c` detects CPUID leaf 7 SMEP and SMAP support, then enables `CR4.SMEP` and `CR4.SMAP` per CPU during HAL CPU entry only when the local CPU advertises each feature. `hal_useraccess_start()`/`hal_useraccess_end()` still bracket generic user-copy windows with `stac`/`clac` only when SMAP is enabled locally, and x86 user-origin entry paths clear AC when SMAP is active so userspace cannot carry an open user-access window into the kernel.
    - SMEP audit status: i386 and amd64 AP bootstrap reset-vector mappings are supervisor KVA mappings, and the temporary low trampoline leaf entries are deliberately installed as `PTE_P | PTE_W` without `PTE_U` even though the helper reaches them through UMAP page-table machinery. Forced-SMEP QEMU smoke is the regression trigger for accidental CPL0 execution from user mappings.
    - Follow-up trigger: reopen this item only if a future x86 feature intentionally executes supervisor code from a user (`PTE_U`) mapping, adds new trampoline mappings, or changes entry/return paths in a way that could bypass the guarded SMEP/SMAP setup.
-11. **Improve framebuffer correctness.**
-    - Evidence: `libnux/framebuffer.c` has XXX comments for RGB masks, bounds checking, and rewrite need.
-    - Next slice: honor framebuffer masks and clamp writes; add a QEMU visual/serial smoke check.
+11. **Framebuffer mask/bounds baseline is implemented; console/graphics refinements remain.**
+    - Current status: `apxh/multiboot/mb.c` builds RGB masks from Multiboot bit positions and sizes without shifting by `1 << pos`; EFI and Multiboot RGB masks are consumed by `libnux/framebuffer.c`; `framebuffer_color()` packs channels through the active descriptor masks with a fallback for invalid/zero masks; and `framebuffer_blt()` clips glyph writes against descriptor width, height, pitch, bpp-derived pixel storage, and mapped framebuffer size. The amd64 EFI smoke requires the serial `FRAMEBUFFER_MASK_BOUNDS test passed.` marker from a clipped bottom-right framebuffer self-test.
+    - Remaining limits: indexed/palette framebuffers are still not a real graphics path, normal multiboot `-nographic` smokes usually do not expose a framebuffer, and there is still no screenshot/visual comparison harness or broader graphics API.
+    - Follow-up trigger: reopen only for a source-backed framebuffer console bug, visual regression harness, non-RGB/palette support decision, or a deliberate graphics API slice.
 12. **Clarify i386 TLS support.**
     - Evidence: `libhal_x86/i386/sys_entry.c` states `hal_frame_settls()` is ignored because i386 TLS needs LDT support.
     - Next slice: document as unsupported or add LDT/TLS support.

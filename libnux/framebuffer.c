@@ -7,6 +7,7 @@
 
 #include "internal.h"
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 #include <nux/locks.h>
 #include <framebuffer.h>
@@ -14,15 +15,155 @@
 static struct fbdesc *fbdesc;
 static lock_t fblock;
 
+static unsigned
+framebuffer_bypp (const struct fbdesc *desc)
+{
+  if (desc == NULL || desc->bpp == 0 || desc->bpp > 32)
+    return 0;
+
+  return (desc->bpp + 7) / 8;
+}
+
+static int
+framebuffer_desc_usable (const struct fbdesc *desc)
+{
+  unsigned bypp = framebuffer_bypp (desc);
+
+  if (desc == NULL || desc->type != FB_RGB || bypp == 0)
+    return 0;
+  if (desc->addr == 0 || desc->width == 0 || desc->height == 0)
+    return 0;
+  if (desc->pitch < bypp || desc->size < bypp)
+    return 0;
+
+  return 1;
+}
+
+static unsigned
+framebuffer_mask_shift (uint32_t mask)
+{
+  unsigned shift = 0;
+
+  if (mask == 0)
+    return 0;
+
+  while ((mask & 1) == 0)
+    {
+      shift++;
+      mask >>= 1;
+    }
+
+  return shift;
+}
+
+static unsigned
+framebuffer_mask_bits (uint32_t mask)
+{
+  unsigned bits = 0;
+
+  while (mask != 0)
+    {
+      if ((mask & 1) != 0)
+	bits++;
+      mask >>= 1;
+    }
+
+  return bits;
+}
+
+static int
+framebuffer_masks_usable (const struct fbdesc *desc)
+{
+  uint32_t all;
+  unsigned bypp = framebuffer_bypp (desc);
+  unsigned maxbits;
+
+  if (desc == NULL || bypp == 0)
+    return 0;
+
+  if (((desc->r_mask & desc->g_mask) != 0)
+      || ((desc->r_mask & desc->b_mask) != 0)
+      || ((desc->g_mask & desc->b_mask) != 0))
+    return 0;
+
+  all = desc->r_mask | desc->g_mask | desc->b_mask;
+  if (all == 0)
+    return 0;
+
+  maxbits = bypp * 8;
+  if (maxbits < 32 && (all >> maxbits) != 0)
+    return 0;
+
+  return 1;
+}
+
+static uint32_t
+framebuffer_default_color (unsigned r, unsigned g, unsigned b)
+{
+  if (r > 255)
+    r = 255;
+  if (g > 255)
+    g = 255;
+  if (b > 255)
+    b = 255;
+
+  return (r << 16) | (g << 8) | b;
+}
+
+static uint32_t
+framebuffer_color_channel (unsigned value, uint32_t mask)
+{
+  unsigned bits;
+  unsigned shift;
+  uint64_t maxval;
+  uint64_t scaled;
+
+  if (mask == 0)
+    return 0;
+
+  if (value > 255)
+    value = 255;
+
+  bits = framebuffer_mask_bits (mask);
+  shift = framebuffer_mask_shift (mask);
+  maxval = bits >= 32 ? 0xffffffffULL : ((1ULL << bits) - 1);
+  scaled = ((uint64_t) value * maxval + 127) / 255;
+
+  return (uint32_t) ((scaled << shift) & mask);
+}
+
+static void
+framebuffer_write_pixel (uint64_t off, uint32_t color, unsigned bypp)
+{
+  volatile uint8_t *dst;
+  unsigned i;
+
+  dst = (volatile uint8_t *) (uintptr_t) (fbdesc->addr + off);
+  for (i = 0; i < bypp; i++)
+    dst[i] = (uint8_t) (color >> (i * 8));
+}
+
+static void framebuffer_selftest (void);
+
 int
 framebuffer_init (struct fbdesc *desc)
 {
-  if (desc->type == FB_INVALID)
-    return 0;
+  if (desc == NULL || desc->type == FB_INVALID)
+    {
+      fbdesc = NULL;
+      return 0;
+    }
 
   assert (desc->type == FB_RGB);
+  if (!framebuffer_desc_usable (desc))
+    {
+      fbdesc = NULL;
+      return 0;
+    }
+
   fbdesc = desc;
   memset ((void *) (uintptr_t) fbdesc->addr, 0, fbdesc->size);
+  framebuffer_selftest ();
   framebuffer_reset ();
   return 1;
 }
@@ -30,57 +171,93 @@ framebuffer_init (struct fbdesc *desc)
 uint32_t
 framebuffer_color (unsigned r, unsigned g, unsigned b)
 {
-  /* XXX: Use rgb masks. */
-  return 0xffffff;
+  if (!framebuffer_masks_usable (fbdesc))
+    return framebuffer_default_color (r, g, b);
+
+  return framebuffer_color_channel (r, fbdesc->r_mask)
+    | framebuffer_color_channel (g, fbdesc->g_mask)
+    | framebuffer_color_channel (b, fbdesc->b_mask);
 }
 
 /*
-  Possibly the slowest software blitter.
-
-  XXX: Doesn't check boundaries.
-  XXX: COMPLETE REWRITE CLEARLY NEEDED.
+  Possibly the slowest software blitter.  It is deliberately conservative:
+  glyph writes are clipped against the framebuffer dimensions, pitch and mapped
+  byte size, and pixels are stored using only the bytes advertised by bpp.
 */
 void
 framebuffer_blt (unsigned x, unsigned y, uint32_t color,
 		 void *data, size_t width, size_t height)
 {
-  unsigned bypp = fbdesc->bpp / 8;
-  size_t hrem;
+  unsigned bypp = framebuffer_bypp (fbdesc);
+  size_t row;
+  size_t src_stride;
+  size_t clip_w;
+  size_t clip_h;
+  uint8_t *src = data;
 
-  if (fbdesc->type == FB_INVALID)
+  if (!framebuffer_desc_usable (fbdesc) || data == NULL)
+    return;
+  if (width == 0 || height == 0 || width > (size_t) -1 - 7)
+    return;
+  if (x >= fbdesc->width || y >= fbdesc->height)
     return;
 
-  hrem = height;
-  while (hrem)
+  src_stride = (width + 7) / 8;
+  clip_w = width;
+  clip_h = height;
+  if (clip_w > (size_t) fbdesc->width - x)
+    clip_w = (size_t) fbdesc->width - x;
+  if (clip_h > (size_t) fbdesc->height - y)
+    clip_h = (size_t) fbdesc->height - y;
+
+  for (row = 0; row < clip_h; row++)
     {
-      size_t off = y * fbdesc->pitch + x * bypp;
-      size_t wremby = (width + 7) / 8;
-      size_t wrem = width;
+      uint64_t row_off = ((uint64_t) y + row) * fbdesc->pitch;
+      uint8_t *rowdata = src + row * src_stride;
+      size_t col;
 
-      while (wremby)
+      if (row_off >= fbdesc->size)
+	break;
+
+      for (col = 0; col < clip_w; col++)
 	{
-	  uint8_t byte = *(uint8_t *) data++;
-	  size_t bits = wrem < 8 ? wrem : 8;
+	  uint64_t xoff = ((uint64_t) x + col) * bypp;
+	  uint64_t off;
+	  uint32_t pixel;
 
-	  while (bits)
-	    {
-	      if (byte & 0x80)
-		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) =
-		  color;
-	      else
-		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) = 0;
+	  if (xoff > (uint64_t) fbdesc->pitch - bypp)
+	    break;
+	  off = row_off + xoff;
+	  if (off < row_off || off > fbdesc->size - bypp)
+	    break;
 
-	      off += bypp;
-	      byte <<= 1;
-	      bits--;
-	      wrem--;
-	    }
-
-	  wremby--;
+	  if ((rowdata[col / 8] & (0x80 >> (col % 8))) != 0)
+	    pixel = color;
+	  else
+	    pixel = 0;
+	  framebuffer_write_pixel (off, pixel, bypp);
 	}
-      y += 1;
-      hrem--;
     }
+}
+
+static void
+framebuffer_selftest (void)
+{
+  uint8_t data[16];
+  uint32_t color;
+  unsigned i;
+
+  if (!framebuffer_desc_usable (fbdesc))
+    return;
+
+  for (i = 0; i < sizeof (data); i++)
+    data[i] = 0;
+  data[0] = 0x80;
+
+  color = framebuffer_color (0xff, 0xff, 0xff);
+  framebuffer_blt (fbdesc->width - 1, fbdesc->height - 1, color, data, 8, 16);
+  framebuffer_blt (fbdesc->width - 1, fbdesc->height - 1, 0, data, 8, 16);
+  printf ("FRAMEBUFFER_MASK_BOUNDS test passed.\n");
 }
 
 
@@ -103,9 +280,13 @@ void
 framebuffer_reset (void)
 {
   spinlock_init (&fblock);
+  if (!framebuffer_desc_usable (fbdesc))
+    return;
+
   fb_scrcols = (fbdesc->width / 8) / (FB_ROWCHARS + 1);
   fb_scrcols = fb_scrcols == 0 ? 1 : fb_scrcols;
   fb_scrrows = fbdesc->height / 16;
+  fb_scrrows = fb_scrrows == 0 ? 1 : fb_scrrows;
 }
 
 
@@ -194,6 +375,8 @@ framebuffer_putc (int ch, uint32_t color)
   unsigned px, py;
   unsigned char c = (unsigned char) ch;
 
+  if (!framebuffer_desc_usable (fbdesc))
+    return ch;
 
   if (c == '\n')
     {

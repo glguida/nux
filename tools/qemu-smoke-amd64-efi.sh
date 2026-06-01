@@ -247,6 +247,7 @@ while IFS= read -r marker; do
 done <<'MARKERS'
 APXH started.
 NUX library (nux)
+FRAMEBUFFER_MASK_BOUNDS test passed.
 IPI!
 Hello from userspace, NUX!
 SYSC0 test passed.

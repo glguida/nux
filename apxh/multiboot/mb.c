@@ -30,6 +30,19 @@ static struct apxh_pltdesc pltdesc;
 
 uint64_t rsdp_find (void);
 
+static uint32_t
+multiboot_rgb_mask (unsigned pos, unsigned size)
+{
+  if (pos >= 32 || size == 0)
+    return 0;
+  if (size > 32 - pos)
+    size = 32 - pos;
+  if (size == 32)
+    return UINT32_MAX;
+
+  return ((1U << size) - 1) << pos;
+}
+
 static void
 parse_multiboot_framebuffer (struct multiboot_info *info)
 {
@@ -45,11 +58,9 @@ parse_multiboot_framebuffer (struct multiboot_info *info)
       fbdesc.height = info->framebuffer_height;
       fbdesc.bpp = info->framebuffer_bpp;
 
-#define MB2MASK(_p, _s)  (((1 << (_s)) - 1) << (1 << (_p)))
-      fbdesc.r_mask = MB2MASK (info->rpos, info->rsize);
-      fbdesc.g_mask = MB2MASK (info->gpos, info->gsize);
-      fbdesc.b_mask = MB2MASK (info->bpos, info->bsize);
-#undef MB2MASK
+      fbdesc.r_mask = multiboot_rgb_mask (info->rpos, info->rsize);
+      fbdesc.g_mask = multiboot_rgb_mask (info->gpos, info->gsize);
+      fbdesc.b_mask = multiboot_rgb_mask (info->bpos, info->bsize);
     }
   else if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
     {

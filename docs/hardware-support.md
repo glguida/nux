@@ -50,8 +50,8 @@ Known gaps:
 
 - x86 `hal_putchar` writes to framebuffer if initialized, otherwise VGA text, and always serial port `0x3f8` (`libhal_x86/x86.c`, `libhal_x86/serial.c`, `libhal_x86/vga_text.c`).
 - RISC-V `hal_putchar` currently uses an SBI console ecall (`libhal_riscv/riscv.c`).
-- APXH multiboot and EFI can provide framebuffer descriptions (`apxh/multiboot/mb.c`, `apxh/efi/efi-main.c`).
-- `libnux/framebuffer.c` has explicit TODO/XXX comments about RGB masks and bounds checking; treat framebuffer drawing as basic console support, not a finished graphics API.
+- APXH multiboot and EFI can provide framebuffer descriptions (`apxh/multiboot/mb.c`, `apxh/efi/efi-main.c`). Multiboot RGB masks are now built from the advertised bit positions and sizes, and EFI GOP masks are passed through unchanged.
+- `libnux/framebuffer.c` now uses the active RGB masks for console color packing and clips glyph blits against descriptor width, height, pitch, bytes-per-pixel, and mapped framebuffer size. The amd64 EFI smoke requires the serial `FRAMEBUFFER_MASK_BOUNDS test passed.` marker from a clipped framebuffer self-test. Treat this as safer basic console support, not a finished graphics API: indexed/palette modes and automated visual comparison remain unsupported.
 
 ## QEMU support
 
