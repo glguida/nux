@@ -27,7 +27,7 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
   ./tools/qemu-smoke-i386.sh
 ```
 
-`tools/qemu-smoke-i386.sh` creates an out-of-tree build under `/tmp` by default; set `BUILD` or `NUX_BUILD` to choose another out-of-tree directory and `TIMEOUT` to override the default 20 second QEMU timeout. It records configure, make, and QEMU serial logs in the build directory. A timeout rc 124 is expected because the guest idles after userspace exits, but the harness counts it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_MEMSET test passed.`, `UADDR_MEMSET user test passed.`, `UADDR_VALIDRANGE test passed.`, `KVA_ALLOC_FREE test passed.`, `KMAP_UPDATE test passed.`, and `User exited with error code: 42`.
+`tools/qemu-smoke-i386.sh` creates an out-of-tree build under `/tmp` by default; set `BUILD` or `NUX_BUILD` to choose another out-of-tree directory and `TIMEOUT` to override the default 20 second QEMU timeout. It records configure, make, and QEMU serial logs in the build directory. A timeout rc 124 is expected because the guest idles after userspace exits, but the harness counts it as a pass only if the captured serial output includes the reviewed markers: `APXH started.`, `NUX library (nux)`, `Hello from userspace, NUX!`, `SYSC0 test passed.`, `SYSC6 test passed.`, `UCTXT_SETA2 test passed.`, `UCTXT_SETA2 user test passed.`, `UADDR_MEMSET test passed.`, `UADDR_MEMSET user test passed.`, `UADDR_VALIDRANGE test passed.`, `UMAP_BOUNDS test passed.`, `KVA_ALLOC_FREE test passed.`, `KMAP_UPDATE test passed.`, and `User exited with error code: 42`.
 
 The checked-in amd64 harness uses the standardized local override path. It defaults to `TOOLCHAIN=x86_64-linux-gnu` and `TOOLCHAIN32=i686-unknown-elf`, so the runner must provide host-prefixed x86_64 tools, `qemu-system-x86_64`, `make`, and the stable i386 `TOOLBIN`:
 
@@ -36,9 +36,9 @@ TOOLBIN=/home/glguida/mysrc/system/state/the_nux-d552afcb8e35/tasks/the-nux-docs
   ./tools/qemu-smoke-amd64.sh
 ```
 
-`tools/qemu-smoke-amd64.sh` uses the same out-of-tree build, log, timeout, `BUILD`/`NUX_BUILD`, `TIMEOUT`, `JOBS`, and `NUX_SMOKE_REUSE_BUILD` conventions as the i386 harness. It accepts timeout rc 124 only after the reviewed amd64 markers appear, including `IPI!`, userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` and `UADDR_MEMSET` kernel/user markers, the `KMAP_UPDATE` marker, `User exited with error code: 42`, no unexpected kernel page fault, and repeated zero-valued `pnux_entry_pagefault` idle counter lines.
+`tools/qemu-smoke-amd64.sh` uses the same out-of-tree build, log, timeout, `BUILD`/`NUX_BUILD`, `TIMEOUT`, `JOBS`, and `NUX_SMOKE_REUSE_BUILD` conventions as the i386 harness. It accepts timeout rc 124 only after the reviewed amd64 markers appear, including `IPI!`, userspace hello, `SYSC0` through `SYSC6`, `UCTXT_SETA2` and `UADDR_MEMSET` kernel/user markers, the `UMAP_BOUNDS` and `KMAP_UPDATE` markers, `User exited with error code: 42`, no unexpected kernel page fault, and repeated zero-valued `pnux_entry_pagefault` idle counter lines.
 
-The checked-in riscv64 harness is runnable in this container with the reviewed Debian `riscv64-unknown-elf-*` tools, initialized submodules, and `qemu-system-riscv64`. It builds the verified SBI/DTB subset from an out-of-tree directory and accepts timeout rc 124 only after the OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/KVA/KMAP/exit/idle markers appear:
+The checked-in riscv64 harness is runnable in this container with the reviewed Debian `riscv64-unknown-elf-*` tools, initialized submodules, and `qemu-system-riscv64`. It builds the verified SBI/DTB subset from an out-of-tree directory and accepts timeout rc 124 only after the OpenSBI/APXH/NUX/userspace/syscall/UCTXT/UADDR/UMAP/KVA/KMAP/exit/idle markers appear:
 
 ```sh
 ./tools/qemu-smoke-riscv64.sh

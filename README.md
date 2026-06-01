@@ -54,7 +54,7 @@ container now has `/usr/bin/qemu-system-x86_64` (QEMU `10.0.8 (Debian
 the repository. With `/usr/share/qemu/OVMF.fd` or split
 `/usr/share/OVMF/OVMF_CODE_4M.fd` plus `/usr/share/OVMF/OVMF_VARS_4M.fd`,
 `tools/qemu-smoke-amd64-efi.sh` boots under OVMF and reaches the amd64
-APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, `UADDR_MEMSET`, `KMAP_UPDATE`, exit, and idle markers before
+APXH/NUX, IPI, userspace, syscall, `UCTXT_SETA2`, `UADDR_MEMSET`, `UMAP_BOUNDS`, `KMAP_UPDATE`, exit, and idle markers before
 the expected timeout. The EFI build uses build-local `gnu-efi` objects rather
 than source-tree generated submodule artifacts, and the harness stops early on
 tracked dirty `contrib/gnu-efi` sources unless explicitly overridden. RISC-V EFI

@@ -56,6 +56,28 @@ uaddr_validrange_test (void)
 }
 
 static void
+umap_bounds_test (struct hal_umap *test_umap)
+{
+  uaddr_t base = (uaddr_t) hal_virtmem_userbase ();
+  size_t usersize = hal_virtmem_usersize ();
+  uaddr_t end;
+  hal_l1p_t l1p;
+
+  assert (usersize <= UADDR_INVALID - base);
+  end = base + usersize;
+
+  l1p = (hal_l1p_t) UADDR_INVALID;
+  assert (!hal_umap_getl1p (test_umap, end, true, &l1p));
+  assert (l1p == L1P_INVALID);
+
+  l1p = (hal_l1p_t) UADDR_INVALID;
+  assert (!hal_umap_getl1p (NULL, end, false, &l1p));
+  assert (l1p == L1P_INVALID);
+
+  info ("UMAP_BOUNDS test passed.");
+}
+
+static void
 kva_alloc_free_test (void)
 {
   vaddr_t kmem_before = kmem_sbrk (0, 0);
@@ -192,6 +214,7 @@ main (int argc, char *argv[])
   hal_l1p_t l1p;
   hal_l1e_t l1e;
   hal_umap_bootstrap (&umap);
+  umap_bounds_test (&umap);
   uctxt_print (&u_init);
 
   for (uint64_t i = 0;; i += (1 << 12))

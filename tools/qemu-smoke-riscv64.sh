@@ -184,6 +184,7 @@ UCTXT_SETA2 user test passed.
 UADDR_MEMSET test passed.
 UADDR_MEMSET user test passed.
 UADDR_VALIDRANGE test passed.
+UMAP_BOUNDS test passed.
 KVA_ALLOC_FREE test passed.
 KMAP_UPDATE test passed.
 User exited with error code: 42
